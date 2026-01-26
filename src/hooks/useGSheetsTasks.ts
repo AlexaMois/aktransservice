@@ -1,16 +1,34 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Task, TaskStatus, Announcement, TaskComment } from '@/types/task';
 import { gsheetsTasksApi, gsheetsAnnouncementsApi, gsheetsCommentsApi, isGSheetsMode } from '@/lib/api/gsheets';
 import { supabase } from '@/integrations/supabase/client';
+import { useSyncStatus, SyncStatus } from './useSyncStatus';
+
+// Polling interval in milliseconds (30 seconds by default)
+const DEFAULT_POLLING_INTERVAL = 30000;
 
 // Use Google Sheets if configured, otherwise fall back to Supabase
-export function useGSheetsTasks() {
+export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const gsheetsEnabled = isGSheetsMode();
+  const isInitialLoad = useRef(true);
+  
+  const { 
+    status: syncStatus, 
+    lastSyncTime, 
+    error: syncError, 
+    sync, 
+    setSyncCallback 
+  } = useSyncStatus({ 
+    pollingInterval, 
+    enabled: gsheetsEnabled as boolean 
+  });
 
-  const fetchTasks = useCallback(async () => {
-    setLoading(true);
+  const fetchTasks = useCallback(async (showLoading = true) => {
+    if (showLoading && isInitialLoad.current) {
+      setLoading(true);
+    }
     try {
       if (gsheetsEnabled) {
         const data = await gsheetsTasksApi.list();
@@ -32,13 +50,21 @@ export function useGSheetsTasks() {
       }
     } catch (error) {
       console.error('Error fetching tasks:', error);
+      throw error; // Re-throw for sync status tracking
     } finally {
       setLoading(false);
+      isInitialLoad.current = false;
     }
   }, [gsheetsEnabled]);
 
+  // Set up sync callback for polling
   useEffect(() => {
-    fetchTasks();
+    setSyncCallback(() => fetchTasks(false));
+  }, [fetchTasks, setSyncCallback]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchTasks(true);
   }, [fetchTasks]);
 
   const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'status'>) => {
@@ -117,6 +143,11 @@ export function useGSheetsTasks() {
     updateTask,
     getTasksByStatus,
     refetch: fetchTasks,
+    // Sync status
+    syncStatus,
+    lastSyncTime,
+    syncError,
+    manualSync: sync,
   };
 }
 
