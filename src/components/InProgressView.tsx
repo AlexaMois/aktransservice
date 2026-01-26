@@ -1,13 +1,24 @@
-import { Task, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS, TASK_TYPE_LABELS } from '@/types/task';
+import { Task, TASK_TYPE_LABELS, TASK_TYPE_COLORS, IMPORTANCE_LABELS } from '@/types/task';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, AlertTriangle, Lightbulb, Zap } from 'lucide-react';
+import { Loader2, User, AlertTriangle, Lightbulb, Zap, ListTodo, Megaphone } from 'lucide-react';
 
 interface InProgressViewProps {
   tasks: Task[];
   loading: boolean;
   onTaskClick: (task: Task) => void;
 }
+
+const TaskTypeIcon = ({ type }: { type: Task['task_type'] }) => {
+  const icons = {
+    idea: Lightbulb,
+    problem: AlertTriangle,
+    task: ListTodo,
+    announcement: Megaphone,
+  };
+  const Icon = icons[type];
+  return <Icon className="h-4 w-4" />;
+};
 
 export function InProgressView({ tasks, loading, onTaskClick }: InProgressViewProps) {
   const inProgressTasks = tasks.filter(t => t.status === 'in-progress');
@@ -44,12 +55,8 @@ export function InProgressView({ tasks, loading, onTaskClick }: InProgressViewPr
         >
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
-              {task.task_type === 'problem' ? (
-                <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
-              ) : (
-                <Lightbulb className="h-4 w-4 text-primary shrink-0" />
-              )}
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className={`text-xs gap-1 ${TASK_TYPE_COLORS[task.task_type]}`}>
+                <TaskTypeIcon type={task.task_type} />
                 {TASK_TYPE_LABELS[task.task_type]}
               </Badge>
               {task.importance && (
@@ -61,13 +68,7 @@ export function InProgressView({ tasks, loading, onTaskClick }: InProgressViewPr
             <CardTitle className="text-base line-clamp-2">{task.title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{task.description}</p>
-            
-            {task.effect_type && (
-              <Badge variant="secondary" className="text-xs mb-3">
-                {EFFECT_TYPE_LABELS[task.effect_type]}
-              </Badge>
-            )}
+            <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{task.summary}</p>
             
             {task.owner && (
               <div className="flex items-center gap-2 text-sm">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Task, STATUS_LABELS, TASK_TYPE_LABELS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS } from '@/types/task';
+import { Task, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS } from '@/types/task';
 import { useTaskComments } from '@/hooks/useTasks';
 import {
   Dialog,
@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, User, Calendar, ExternalLink, Clock, MessageSquare, Link2, AlertTriangle, Lightbulb, Send, CheckCircle } from 'lucide-react';
+import { FileText, User, Calendar, ExternalLink, Clock, MessageSquare, Link2, AlertTriangle, Lightbulb, Send, CheckCircle, ListTodo, Megaphone, LinkIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TaskDetailModalProps {
@@ -33,6 +33,17 @@ const importanceVariants: Record<string, string> = {
   critical: 'bg-destructive/10 text-destructive border-destructive/20',
   important: 'bg-chart-1/10 text-chart-5 border-chart-1/20',
   can_wait: 'bg-muted text-muted-foreground border-muted',
+};
+
+const TaskTypeIcon = ({ type }: { type: Task['task_type'] }) => {
+  const icons = {
+    idea: Lightbulb,
+    problem: AlertTriangle,
+    task: ListTodo,
+    announcement: Megaphone,
+  };
+  const Icon = icons[type];
+  return <Icon className="h-5 w-5" />;
 };
 
 export function TaskDetailModal({ task, open, onClose, allTasks = [] }: TaskDetailModalProps) {
@@ -69,12 +80,8 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [] }: TaskDeta
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <div className="flex items-start gap-2 sm:gap-3">
-            <div className="shrink-0 mt-0.5">
-              {task.task_type === 'problem' ? (
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-              ) : (
-                <Lightbulb className="h-5 w-5 text-primary" />
-              )}
+            <div className={`shrink-0 mt-0.5 p-1.5 rounded-lg ${TASK_TYPE_COLORS[task.task_type].replace('text-', 'bg-').split(' ')[0]}`}>
+              <TaskTypeIcon type={task.task_type} />
             </div>
             <DialogTitle className="text-lg sm:text-xl font-semibold text-left pr-6">
               {task.title}
@@ -84,7 +91,7 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [] }: TaskDeta
             <Badge variant="outline" className={`text-xs ${statusVariants[task.status]}`}>
               {STATUS_LABELS[task.status]}
             </Badge>
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className={`text-xs ${TASK_TYPE_COLORS[task.task_type]}`}>
               {TASK_TYPE_LABELS[task.task_type]}
             </Badge>
             {task.importance && (
@@ -101,11 +108,19 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [] }: TaskDeta
         </DialogHeader>
 
         <div className="space-y-4 sm:space-y-5 mt-2">
-          {/* Description */}
+          {/* Summary */}
           <div>
-            <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5 sm:mb-2">Описание</h4>
-            <p className="text-sm sm:text-base text-foreground">{task.description}</p>
+            <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">Суть</h4>
+            <p className="text-sm sm:text-base text-foreground">{task.summary}</p>
           </div>
+
+          {/* Description */}
+          {task.description && (
+            <div>
+              <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">Детальное описание</h4>
+              <p className="text-sm text-foreground whitespace-pre-wrap">{task.description}</p>
+            </div>
+          )}
 
           {/* Problem description for problem type */}
           {task.task_type === 'problem' && task.problem_description && (
@@ -115,6 +130,25 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [] }: TaskDeta
                 Описание проблемы
               </h4>
               <p className="text-sm text-foreground">{task.problem_description}</p>
+            </div>
+          )}
+
+          {/* URL */}
+          {task.url && (
+            <div>
+              <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                <LinkIcon className="h-3.5 w-3.5" />
+                Ссылка
+              </h4>
+              <a 
+                href={task.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-primary hover:underline break-all flex items-center gap-1"
+              >
+                {task.url}
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+              </a>
             </div>
           )}
 

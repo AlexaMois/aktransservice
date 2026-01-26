@@ -16,7 +16,12 @@ export function useTasks() {
     if (error) {
       console.error('Error fetching tasks:', error);
     } else {
-      setTasks(data as Task[]);
+      // Map data to ensure summary exists (fallback to description for backwards compatibility)
+      const mappedTasks = (data || []).map(task => ({
+        ...task,
+        summary: task.summary || task.description || '',
+      })) as Task[];
+      setTasks(mappedTasks);
     }
     setLoading(false);
   }, []);
@@ -40,8 +45,13 @@ export function useTasks() {
       throw error;
     }
 
-    setTasks((prev) => [data as Task, ...prev]);
-    return data as Task;
+    const newTask = {
+      ...data,
+      summary: data.summary || data.description || '',
+    } as Task;
+    
+    setTasks((prev) => [newTask, ...prev]);
+    return newTask;
   };
 
   const getTasksByStatus = (status: TaskStatus) => {
