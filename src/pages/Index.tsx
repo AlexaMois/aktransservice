@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Task, TaskStatus, TaskPriority, TaskType, EffectType, ImportanceRating } from '@/types/task';
+import { Task, TaskStatus, TaskPriority, TaskType, EffectType, ImportanceRating, STATUS_LABELS } from '@/types/task';
 import { useTasks } from '@/hooks/useTasks';
 import { Header } from '@/components/Header';
 import { SearchAndFilters } from '@/components/SearchAndFilters';
@@ -12,7 +11,9 @@ import { InProgressView } from '@/components/InProgressView';
 import { AdditionalSectionsPage } from '@/components/AdditionalSectionsPage';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Map, Megaphone, Zap, FolderOpen } from 'lucide-react';
+import { TaskCard } from '@/components/TaskCard';
 
 const STATUSES: TaskStatus[] = ['ideas', 'planned', 'in-progress', 'completed'];
 
@@ -21,6 +22,7 @@ const Index = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('roadmap');
+  const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus>('ideas');
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -142,28 +144,29 @@ const Index = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       
-      <main className="flex-1 container mx-auto px-4 py-6 flex flex-col gap-6">
+      <main className="flex-1 container mx-auto px-3 sm:px-4 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
-            <TabsTrigger value="roadmap" className="flex items-center gap-2">
+          {/* Mobile tabs - stacked */}
+          <TabsList className="grid w-full grid-cols-2 gap-1 h-auto p-1 sm:grid-cols-4 sm:h-10">
+            <TabsTrigger value="roadmap" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
               <Map className="h-4 w-4" />
-              Дорожная карта
+              <span>Дорожная карта</span>
             </TabsTrigger>
-            <TabsTrigger value="in-progress" className="flex items-center gap-2">
+            <TabsTrigger value="in-progress" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
               <Zap className="h-4 w-4" />
-              В работе
+              <span>В работе</span>
             </TabsTrigger>
-            <TabsTrigger value="announcements" className="flex items-center gap-2">
+            <TabsTrigger value="announcements" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
               <Megaphone className="h-4 w-4" />
-              Объявления
+              <span>Объявления</span>
             </TabsTrigger>
-            <TabsTrigger value="sections" className="flex items-center gap-2">
+            <TabsTrigger value="sections" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
               <FolderOpen className="h-4 w-4" />
-              Разделы
+              <span>Разделы</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="roadmap" className="space-y-4">
+          <TabsContent value="roadmap" className="space-y-4 mt-4">
             <SearchAndFilters
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
@@ -188,25 +191,64 @@ const Index = () => {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : (
-              <div className="flex-1 min-h-0">
-                <ScrollArea className="h-[calc(100vh-300px)]">
-                  <div className="flex gap-4 pb-4">
-                    {STATUSES.map((status) => (
-                      <KanbanColumn
-                        key={status}
-                        status={status}
-                        tasks={tasksByStatus[status]}
-                        onTaskClick={setSelectedTask}
+              <>
+                {/* Mobile view - single column with status selector */}
+                <div className="block md:hidden">
+                  <div className="mb-4">
+                    <Select 
+                      value={mobileStatusFilter} 
+                      onValueChange={(v) => setMobileStatusFilter(v as TaskStatus)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUSES.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {STATUS_LABELS[status]} ({tasksByStatus[status].length})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {tasksByStatus[mobileStatusFilter].map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        onClick={() => setSelectedTask(task)}
                       />
                     ))}
+                    {tasksByStatus[mobileStatusFilter].length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        Нет задач в этом статусе
+                      </div>
+                    )}
                   </div>
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
-              </div>
+                </div>
+
+                {/* Desktop view - kanban */}
+                <div className="hidden md:block flex-1 min-h-0">
+                  <ScrollArea className="h-[calc(100vh-300px)]">
+                    <div className="flex gap-4 pb-4">
+                      {STATUSES.map((status) => (
+                        <KanbanColumn
+                          key={status}
+                          status={status}
+                          tasks={tasksByStatus[status]}
+                          onTaskClick={setSelectedTask}
+                        />
+                      ))}
+                    </div>
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
+                </div>
+              </>
             )}
           </TabsContent>
 
-          <TabsContent value="in-progress">
+          <TabsContent value="in-progress" className="mt-4">
             <InProgressView 
               tasks={tasks} 
               loading={loading}
@@ -214,11 +256,11 @@ const Index = () => {
             />
           </TabsContent>
 
-          <TabsContent value="announcements">
+          <TabsContent value="announcements" className="mt-4">
             <AnnouncementsPage />
           </TabsContent>
 
-          <TabsContent value="sections">
+          <TabsContent value="sections" className="mt-4">
             <AdditionalSectionsPage />
           </TabsContent>
         </Tabs>
