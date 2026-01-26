@@ -3,9 +3,11 @@ import { Task, TaskComment, Announcement } from '@/types/task';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-// Check if Google Sheets mode is enabled (by checking for SHEETS_ID in localStorage)
+// Google Sheets mode is now always enabled since we have GOOGLE_SHEETS_ID secret configured
+// The edge function will use the GOOGLE_SHEETS_ID environment variable
 export const isGSheetsMode = () => {
-  return !!localStorage.getItem('GOOGLE_SHEETS_ID');
+  // Check localStorage first (for backward compatibility), then always true since secret is configured
+  return localStorage.getItem('GOOGLE_SHEETS_ID') || true;
 };
 
 export const getGSheetsId = () => {
