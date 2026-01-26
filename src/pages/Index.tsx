@@ -22,6 +22,7 @@ const Index = () => {
   const { tasks, loading, addTask, refetch } = useTasks();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [defaultTaskType, setDefaultTaskType] = useState<TaskType>('idea');
   const [activeTab, setActiveTab] = useState('roadmap');
   const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus>('ideas');
   
@@ -72,7 +73,8 @@ const Index = () => {
         const query = searchQuery.toLowerCase();
         const matchesSearch =
           task.title.toLowerCase().includes(query) ||
-          task.description.toLowerCase().includes(query) ||
+          task.summary.toLowerCase().includes(query) ||
+          (task.description?.toLowerCase().includes(query) ?? false) ||
           task.author.toLowerCase().includes(query) ||
           (task.owner?.toLowerCase().includes(query) ?? false);
         if (!matchesSearch) return false;
@@ -128,14 +130,21 @@ const Index = () => {
     return grouped;
   }, [filteredTasks]);
 
+  const handleOpenAddModal = (type: TaskType = 'idea') => {
+    setDefaultTaskType(type);
+    setIsAddModalOpen(true);
+  };
+
   const handleAddTask = async (data: {
     title: string;
-    description: string;
+    summary: string;
+    description?: string;
     task_type: TaskType;
     author: string;
     priority: TaskPriority;
     effect_type?: EffectType;
     importance?: ImportanceRating;
+    url?: string;
     input_data_description?: string;
     problem_description?: string;
     file_name?: string;
@@ -143,12 +152,14 @@ const Index = () => {
   }) => {
     await addTask({
       title: data.title,
-      description: data.description,
+      summary: data.summary,
+      description: data.description || null,
       task_type: data.task_type,
       author: data.author || 'Аноним',
       priority: data.priority,
       effect_type: data.effect_type || null,
       importance: data.importance || null,
+      url: data.url || null,
       input_data_description: data.input_data_description || null,
       problem_description: data.problem_description || null,
       file_name: data.file_name || null,
@@ -205,7 +216,7 @@ const Index = () => {
               ownerFilter={ownerFilter}
               onOwnerFilterChange={setOwnerFilter}
               owners={owners}
-              onAddClick={() => setIsAddModalOpen(true)}
+              onAddClick={() => handleOpenAddModal('idea')}
             />
 
             {loading ? (
@@ -277,9 +288,26 @@ const Index = () => {
                       />
                     ))}
                     {tasksByStatus[mobileStatusFilter].length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <p>Нет задач в этом статусе</p>
-                        <p className="text-xs mt-1">Свайпните влево или вправо</p>
+                      <div className="text-center py-8">
+                        {mobileStatusFilter === 'ideas' ? (
+                          <Button 
+                            variant="outline" 
+                            onClick={() => handleOpenAddModal('idea')}
+                            className="gap-2"
+                          >
+                            Добавить идею
+                          </Button>
+                        ) : mobileStatusFilter === 'planned' ? (
+                          <Button 
+                            variant="outline" 
+                            onClick={() => handleOpenAddModal('task')}
+                            className="gap-2"
+                          >
+                            Добавить задачу
+                          </Button>
+                        ) : (
+                          <p className="text-muted-foreground text-sm">Нет задач в этом статусе</p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -295,6 +323,7 @@ const Index = () => {
                           status={status}
                           tasks={tasksByStatus[status]}
                           onTaskClick={setSelectedTask}
+                          onAddClick={(type) => handleOpenAddModal(type)}
                         />
                       ))}
                     </div>
@@ -334,6 +363,7 @@ const Index = () => {
         open={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSubmit={handleAddTask}
+        defaultTaskType={defaultTaskType}
       />
     </div>
   );

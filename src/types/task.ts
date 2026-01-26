@@ -1,13 +1,14 @@
 export type TaskStatus = 'ideas' | 'planned' | 'in-progress' | 'completed';
 export type TaskPriority = 'high' | 'medium' | 'low';
-export type TaskType = 'idea' | 'problem';
+export type TaskType = 'idea' | 'problem' | 'task' | 'announcement';
 export type EffectType = 'security' | 'compliance' | 'reduce_manual_work' | 'process_speed' | 'transparency' | 'audit_prep' | 'financial';
 export type ImportanceRating = 'critical' | 'important' | 'can_wait';
 
 export interface Task {
   id: string;
   title: string;
-  description: string;
+  summary: string;
+  description?: string | null;
   task_type: TaskType;
   status: TaskStatus;
   priority: TaskPriority;
@@ -15,6 +16,7 @@ export interface Task {
   importance?: ImportanceRating | null;
   author: string;
   owner?: string | null;
+  url?: string | null;
   input_data_description?: string | null;
   file_name?: string | null;
   file_url?: string | null;
@@ -88,7 +90,16 @@ export const PRIORITY_LABELS: Record<TaskPriority, string> = {
 
 export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   'idea': 'Идея',
-  'problem': 'Проблема'
+  'problem': 'Проблема',
+  'task': 'Задача',
+  'announcement': 'Объявление'
+};
+
+export const TASK_TYPE_COLORS: Record<TaskType, string> = {
+  'idea': 'bg-primary/10 text-primary border-primary/20',
+  'problem': 'bg-destructive/10 text-destructive border-destructive/20',
+  'task': 'bg-chart-1/10 text-chart-5 border-chart-1/20',
+  'announcement': 'bg-secondary/10 text-secondary border-secondary/20'
 };
 
 export const EFFECT_TYPE_LABELS: Record<EffectType, string> = {

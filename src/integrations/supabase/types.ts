@@ -170,7 +170,7 @@ export type Database = {
         Row: {
           author: string
           created_at: string
-          description: string
+          description: string | null
           effect_type: Database["public"]["Enums"]["effect_type"] | null
           file_name: string | null
           file_url: string | null
@@ -186,14 +186,16 @@ export type Database = {
           result_after: string | null
           result_before: string | null
           status: Database["public"]["Enums"]["task_status"]
+          summary: string
           task_type: Database["public"]["Enums"]["task_type"]
           title: string
           updated_at: string
+          url: string | null
         }
         Insert: {
           author?: string
           created_at?: string
-          description: string
+          description?: string | null
           effect_type?: Database["public"]["Enums"]["effect_type"] | null
           file_name?: string | null
           file_url?: string | null
@@ -209,14 +211,16 @@ export type Database = {
           result_after?: string | null
           result_before?: string | null
           status?: Database["public"]["Enums"]["task_status"]
+          summary: string
           task_type?: Database["public"]["Enums"]["task_type"]
           title: string
           updated_at?: string
+          url?: string | null
         }
         Update: {
           author?: string
           created_at?: string
-          description?: string
+          description?: string | null
           effect_type?: Database["public"]["Enums"]["effect_type"] | null
           file_name?: string | null
           file_url?: string | null
@@ -232,9 +236,11 @@ export type Database = {
           result_after?: string | null
           result_before?: string | null
           status?: Database["public"]["Enums"]["task_status"]
+          summary?: string
           task_type?: Database["public"]["Enums"]["task_type"]
           title?: string
           updated_at?: string
+          url?: string | null
         }
         Relationships: [
           {
@@ -294,7 +300,7 @@ export type Database = {
       importance_rating: "critical" | "important" | "can_wait"
       task_priority: "high" | "medium" | "low"
       task_status: "ideas" | "planned" | "in-progress" | "completed"
-      task_type: "idea" | "problem"
+      task_type: "idea" | "problem" | "task" | "announcement"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -435,7 +441,7 @@ export const Constants = {
       importance_rating: ["critical", "important", "can_wait"],
       task_priority: ["high", "medium", "low"],
       task_status: ["ideas", "planned", "in-progress", "completed"],
-      task_type: ["idea", "problem"],
+      task_type: ["idea", "problem", "task", "announcement"],
     },
   },
 } as const
