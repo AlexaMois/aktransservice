@@ -347,7 +347,19 @@ async function validateSession(
   if (!sessionHeader) return null;
   
   try {
-    const session: UserSession = JSON.parse(sessionHeader);
+    const decodeBase64UrlUtf8 = (input: string): string => {
+      const b64 = input.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+      const binary = atob(padded);
+      const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
+    };
+
+    // Client sends base64url(JSON) to avoid non-latin characters in headers.
+    const raw = sessionHeader.trim();
+    const json = raw.startsWith('{') ? raw : decodeBase64UrlUtf8(raw);
+
+    const session: UserSession = JSON.parse(json);
     if (!session.user_id || !session.access_code) return null;
     
     // Verify user exists in Users sheet

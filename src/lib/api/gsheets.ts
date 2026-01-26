@@ -17,6 +17,16 @@ export const setGSheetsId = (id: string) => {
   localStorage.setItem('GOOGLE_SHEETS_ID', id);
 };
 
+function base64UrlEncodeUtf8(input: string): string {
+  const bytes = new TextEncoder().encode(input);
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
 async function callGSheetsAPI(action: string, entity: string, data?: any, id?: string) {
   const session = getSession();
   
@@ -27,7 +37,9 @@ async function callGSheetsAPI(action: string, entity: string, data?: any, id?: s
   
   // Add session header for authenticated requests
   if (session) {
-    headers['X-App-Session'] = JSON.stringify(session);
+    // IMPORTANT: Header values must be ISO-8859-1. Names can contain Cyrillic,
+    // so we send base64url(JSON) and decode it on the backend.
+    headers['X-App-Session'] = base64UrlEncodeUtf8(JSON.stringify(session));
   }
   
   const response = await fetch(`${SUPABASE_URL}/functions/v1/gsheets-api`, {
