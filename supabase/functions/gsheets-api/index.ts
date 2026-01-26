@@ -402,6 +402,10 @@ function requiresAuth(action: string, entity: string): boolean {
   if (entity === 'users' && action === 'seed') {
     return false;
   }
+  // Reset action requires special handling (secret key instead of session)
+  if (entity === 'users' && action === 'reset') {
+    return false;
+  }
   // All other actions require auth
   return true;
 }
@@ -645,6 +649,81 @@ Deno.serve(async (req) => {
           }
           
           result = { message: 'Admin user created successfully', user_id: adminUser.user_id };
+        } else if (action === 'reset') {
+          // Reset action: clear and recreate Users sheet (requires APP_SECRET_KEY)
+          const secretKey = req.headers.get('X-App-Secret-Key');
+          const expectedKey = Deno.env.get('APP_SECRET_KEY');
+          
+          if (!expectedKey || secretKey !== expectedKey) {
+            return new Response(
+              JSON.stringify({ success: false, error: 'Invalid secret key' }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          // Clear Users sheet
+          const clearUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A:Z:clear`;
+          await fetch(clearUrl, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          });
+          
+          // Write headers
+          await updateRow(accessToken, sheetName, 1, USER_COLUMNS, spreadsheetId);
+          
+          // Clear UserRoles sheet
+          await ensureSheetExists(accessToken, SHEETS.userRoles, USER_ROLE_COLUMNS, spreadsheetId);
+          const clearRolesUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEETS.userRoles}!A:Z:clear`;
+          await fetch(clearRolesUrl, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          });
+          await updateRow(accessToken, SHEETS.userRoles, 1, USER_ROLE_COLUMNS, spreadsheetId);
+          
+          // Clear AccessCodes sheet
+          await ensureSheetExists(accessToken, SHEETS.accessCodes, ACCESS_CODE_COLUMNS, spreadsheetId);
+          const clearCodesUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEETS.accessCodes}!A:Z:clear`;
+          await fetch(clearCodesUrl, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          });
+          await updateRow(accessToken, SHEETS.accessCodes, 1, ACCESS_CODE_COLUMNS, spreadsheetId);
+          
+          // Now create admin
+          const adminAccessCode = data?.admin_access_code;
+          const adminName = data?.admin_name || 'Администратор';
+          const staffAccessCode = data?.user_access_code;
+          
+          if (!adminAccessCode) {
+            return new Response(
+              JSON.stringify({ success: false, error: 'Admin access code required' }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          const now = new Date().toISOString();
+          const adminUser = {
+            user_id: crypto.randomUUID(),
+            name: adminName,
+            role: 'admin' as const,
+            access_code: adminAccessCode,
+            active: true,
+            created_at: now,
+          };
+          
+          await appendRow(accessToken, sheetName, objectToRow(adminUser, USER_COLUMNS), spreadsheetId);
+          
+          // Authoritative role row
+          const adminRoleRow: UserRoleRow = { user_id: adminUser.user_id, role: 'admin', created_at: now };
+          await appendRow(accessToken, SHEETS.userRoles, objectToRow(adminRoleRow, USER_ROLE_COLUMNS), spreadsheetId);
+          
+          // Create staff code
+          if (staffAccessCode) {
+            const entry: AccessCodeEntry = { code: staffAccessCode, role: 'user', active: true, created_at: now };
+            await appendRow(accessToken, SHEETS.accessCodes, objectToRow(entry, ACCESS_CODE_COLUMNS), spreadsheetId);
+          }
+          
+          result = { message: 'Users reset and admin created successfully', user_id: adminUser.user_id };
         }
         break;
       }
