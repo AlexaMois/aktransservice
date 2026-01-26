@@ -1,4 +1,4 @@
-import { Map } from 'lucide-react';
+import { Laptop } from 'lucide-react';
 
 export function Header() {
   return (
@@ -6,14 +6,14 @@ export function Header() {
       <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="p-1.5 sm:p-2 bg-primary rounded-lg shrink-0">
-            <Map className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
+            <Laptop className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
           </div>
           <div className="min-w-0">
             <h1 className="text-base sm:text-xl font-bold text-foreground truncate">
-              Roadmap АкТрансСервис
+              Цифровизация АкТрансСервис
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground truncate">
-              Публичная дорожная карта проекта
+              Публичное пространство управления цифровой трансформацией
             </p>
           </div>
         </div>
