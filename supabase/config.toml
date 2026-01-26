@@ -1,1 +1,10 @@
 project_id = "wnkxrqyovffosuppzujn"
+
+[functions.gsheets-api]
+verify_jwt = false
+
+[functions.gsheets-init]
+verify_jwt = false
+
+[functions.upload-to-gdrive]
+verify_jwt = false

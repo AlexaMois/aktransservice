@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TaskPriority, TaskType, EffectType, ImportanceRating, DigitizationSection, PRIORITY_LABELS, TASK_TYPE_LABELS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS, DIGITIZATION_SECTION_LABELS } from '@/types/task';
+import { getUserName, isAdmin } from '@/lib/auth/session';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Upload, Loader2, AlertCircle, Lightbulb, AlertTriangle, ListTodo, Megaphone, Link, HelpCircle } from 'lucide-react';
+import { Upload, Loader2, AlertCircle, Lightbulb, AlertTriangle, ListTodo, Megaphone, Link, HelpCircle, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { uploadFileToGDrive } from '@/lib/api/gdrive';
 
@@ -30,7 +31,6 @@ interface AddTaskModalProps {
     summary: string;
     description?: string;
     task_type: TaskType;
-    author: string;
     priority: TaskPriority;
     effect_type?: EffectType;
     importance?: ImportanceRating;
@@ -56,12 +56,14 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const userName = getUserName();
+  const userIsAdmin = isAdmin();
+  
   const [formData, setFormData] = useState({
     title: '',
     summary: '',
     description: '',
     task_type: defaultTaskType,
-    author: '',
     priority: 'medium' as TaskPriority,
     effect_type: '' as EffectType | '',
     importance: '' as ImportanceRating | '',
@@ -80,6 +82,14 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
 
   const requiresFile = formData.task_type === 'task' || formData.task_type === 'problem';
   const requiresSection = formData.task_type !== 'announcement';
+  
+  // Only admins can create announcements
+  const canCreateAnnouncement = userIsAdmin;
+  // Filter available task types based on role
+  const availableTaskTypes = Object.keys(TASK_TYPE_LABELS).filter(type => {
+    if (type === 'announcement') return canCreateAnnouncement;
+    return true;
+  }) as TaskType[];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -95,7 +105,6 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
       summary: '',
       description: '',
       task_type: defaultTaskType,
-      author: '',
       priority: 'medium',
       effect_type: '',
       importance: '',
@@ -170,7 +179,6 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
         summary: formData.summary,
         description: formData.description || undefined,
         task_type: formData.task_type,
-        author: formData.author || 'Аноним',
         priority: formData.priority,
         effect_type: formData.effect_type || undefined,
         importance: formData.importance || undefined,
@@ -202,11 +210,18 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Author display (read-only) */}
+          <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Автор:</span>
+            <span className="text-sm font-medium">{userName}</span>
+          </div>
+
           {/* Task type */}
           <div className="space-y-2">
             <Label>Тип записи <span className="text-destructive">*</span></Label>
             <div className="grid grid-cols-2 gap-2">
-              {(Object.keys(TASK_TYPE_LABELS) as TaskType[]).map((type) => {
+              {availableTaskTypes.map((type) => {
                 const Icon = taskTypeIcons[type];
                 const isSelected = formData.task_type === type;
                 return (
@@ -297,17 +312,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="author">Автор</Label>
-              <Input
-                id="author"
-                value={formData.author}
-                onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                placeholder="Имя или отдел"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="priority">Приоритет</Label>
+              <Label>Приоритет</Label>
               <Select
                 value={formData.priority}
                 onValueChange={(value: TaskPriority) => setFormData({ ...formData, priority: value })}
@@ -324,9 +329,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Тип эффекта</Label>
               <Select
@@ -345,25 +348,25 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label>Важность</Label>
-              <Select
-                value={formData.importance}
-                onValueChange={(value: ImportanceRating) => setFormData({ ...formData, importance: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(IMPORTANCE_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label>Важность</Label>
+            <Select
+              value={formData.importance}
+              onValueChange={(value: ImportanceRating) => setFormData({ ...formData, importance: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Выберите..." />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(IMPORTANCE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Digitization section - required for all except announcements */}

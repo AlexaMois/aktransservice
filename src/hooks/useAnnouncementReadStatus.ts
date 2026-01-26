@@ -1,28 +1,28 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Task } from '@/types/task';
 import { gsheetsReadStatusApi, ReadStatus, isGSheetsMode } from '@/lib/api/gsheets';
-
-const USER_ID_KEY = 'user_display_name';
+import { getSession, isAuthenticated } from '@/lib/auth/session';
 
 /**
- * Get or prompt for user ID (display name)
+ * Get user ID from session
  */
 export function getUserId(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(USER_ID_KEY);
-}
-
-export function setUserId(name: string): void {
-  localStorage.setItem(USER_ID_KEY, name.trim());
+  const session = getSession();
+  return session?.user_id || null;
 }
 
 export function hasUserId(): boolean {
-  return !!getUserId();
+  return isAuthenticated();
+}
+
+// Keep these for backward compatibility but they now use session
+export function setUserId(_name: string): void {
+  // No-op: user ID is now managed by session
+  console.warn('setUserId is deprecated, use session management instead');
 }
 
 /**
  * Hook to track read/unread status of announcements using Google Sheets
- * Falls back to localStorage timestamp if Google Sheets not available
  */
 export function useAnnouncementReadStatus(announcements: Task[]) {
   const [readStatuses, setReadStatuses] = useState<ReadStatus[]>([]);
@@ -38,7 +38,7 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
     }
 
     try {
-      const statuses = await gsheetsReadStatusApi.list(userId);
+      const statuses = await gsheetsReadStatusApi.list();
       setReadStatuses(statuses);
     } catch (error) {
       console.error('Error fetching read statuses:', error);
@@ -76,7 +76,7 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
     if (unreadIds.length === 0) return;
 
     try {
-      const newStatuses = await gsheetsReadStatusApi.markAsRead(userId, unreadIds);
+      const newStatuses = await gsheetsReadStatusApi.markAsRead(unreadIds);
       setReadStatuses((prev) => [...prev, ...newStatuses]);
     } catch (error) {
       console.error('Error marking announcements as read:', error);
