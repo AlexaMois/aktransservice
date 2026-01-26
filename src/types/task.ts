@@ -26,6 +26,7 @@ export interface Task {
   result_before?: string | null;
   result_action?: string | null;
   result_after?: string | null;
+  execution_log?: string | null;
   created_at: string;
   updated_at: string;
 }
