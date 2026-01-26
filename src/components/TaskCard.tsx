@@ -32,7 +32,7 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
             {TASK_TYPE_LABELS[task.task_type]}
           </Badge>
         </div>
-        <h3 className="font-semibold text-sm leading-tight text-card-foreground line-clamp-2">
+        <h3 className="font-semibold text-sm leading-tight text-card-foreground break-words">
           {task.title}
         </h3>
       </CardHeader>

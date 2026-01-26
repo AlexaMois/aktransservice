@@ -32,7 +32,7 @@ export function KanbanColumn({ status, tasks, onTaskClick, onAddClick }: KanbanC
     : { label: 'Добавить задачу', icon: ListTodo, type: 'task' as const };
 
   return (
-    <div className="flex flex-col bg-accent/30 rounded-xl min-w-[280px] sm:min-w-[300px] max-w-[320px] w-full">
+    <div className="flex flex-col bg-accent/30 rounded-xl min-w-[280px] sm:min-w-[320px] w-[320px] shrink-0">
       <div className={`px-3 sm:px-4 py-2.5 sm:py-3 border-b-2 ${statusColors[status]} rounded-t-xl`}>
         <div className="flex items-center justify-between">
           <h2 className={`font-semibold text-sm sm:text-base ${statusHeaderColors[status]}`}>
