@@ -238,14 +238,18 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
           {/* Summary */}
           <div>
             <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">Суть</h4>
-            <p className="text-sm sm:text-base text-foreground">{task.summary}</p>
+            <p className="text-sm sm:text-base text-foreground break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+              {task.summary}
+            </p>
           </div>
 
           {/* Description */}
           {task.description && (
             <div>
               <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">Детальное описание</h4>
-              <p className="text-sm text-foreground whitespace-pre-wrap">{task.description}</p>
+              <p className="text-sm text-foreground whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                {task.description}
+              </p>
             </div>
           )}
 
@@ -256,7 +260,9 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
                 <AlertTriangle className="h-4 w-4" />
                 Описание проблемы
               </h4>
-              <p className="text-sm text-foreground">{task.problem_description}</p>
+              <p className="text-sm text-foreground break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                {task.problem_description}
+              </p>
             </div>
           )}
 
@@ -351,7 +357,9 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
               <Separator />
               <div>
                 <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5 sm:mb-2">Входные данные</h4>
-                <p className="text-sm text-foreground mb-3">{task.input_data_description}</p>
+                <p className="text-sm text-foreground mb-3 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                  {task.input_data_description}
+                </p>
                 
                 {task.file_url && task.file_name && (
                   <a 
@@ -494,7 +502,9 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
                       {new Date(comment.created_at).toLocaleDateString('ru-RU')}
                     </span>
                   </div>
-                  <p className="text-xs sm:text-sm text-foreground">{comment.text}</p>
+                  <p className="text-xs sm:text-sm text-foreground break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                    {comment.text}
+                  </p>
                 </div>
               ))}
               {comments.length === 0 && !commentsLoading && (
