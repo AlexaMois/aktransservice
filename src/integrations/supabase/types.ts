@@ -14,16 +14,287 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      announcements: {
+        Row: {
+          created_at: string
+          description: string
+          document_url: string | null
+          id: string
+          published_at: string
+          related_task_ids: string[] | null
+          target_audience: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          document_url?: string | null
+          id?: string
+          published_at?: string
+          related_task_ids?: string[] | null
+          target_audience?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          document_url?: string | null
+          id?: string
+          published_at?: string
+          related_task_ids?: string[] | null
+          target_audience?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      digitization_queue: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      experiments: {
+        Row: {
+          created_at: string
+          description: string | null
+          hypothesis: string | null
+          id: string
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          hypothesis?: string | null
+          id?: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          hypothesis?: string | null
+          id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      not_automating: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      task_comments: {
+        Row: {
+          author: string
+          created_at: string
+          id: string
+          task_id: string
+          text: string
+        }
+        Insert: {
+          author?: string
+          created_at?: string
+          id?: string
+          task_id: string
+          text: string
+        }
+        Update: {
+          author?: string
+          created_at?: string
+          id?: string
+          task_id?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          author: string
+          created_at: string
+          description: string
+          effect_type: Database["public"]["Enums"]["effect_type"] | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          importance: Database["public"]["Enums"]["importance_rating"] | null
+          input_data_description: string | null
+          linked_idea_id: string | null
+          linked_problem_id: string | null
+          owner: string | null
+          priority: Database["public"]["Enums"]["task_priority"]
+          problem_description: string | null
+          result_action: string | null
+          result_after: string | null
+          result_before: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          task_type: Database["public"]["Enums"]["task_type"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author?: string
+          created_at?: string
+          description: string
+          effect_type?: Database["public"]["Enums"]["effect_type"] | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          importance?: Database["public"]["Enums"]["importance_rating"] | null
+          input_data_description?: string | null
+          linked_idea_id?: string | null
+          linked_problem_id?: string | null
+          owner?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          problem_description?: string | null
+          result_action?: string | null
+          result_after?: string | null
+          result_before?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          task_type?: Database["public"]["Enums"]["task_type"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author?: string
+          created_at?: string
+          description?: string
+          effect_type?: Database["public"]["Enums"]["effect_type"] | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          importance?: Database["public"]["Enums"]["importance_rating"] | null
+          input_data_description?: string | null
+          linked_idea_id?: string | null
+          linked_problem_id?: string | null
+          owner?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          problem_description?: string | null
+          result_action?: string | null
+          result_after?: string | null
+          result_before?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          task_type?: Database["public"]["Enums"]["task_type"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_linked_idea_id_fkey"
+            columns: ["linked_idea_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_linked_problem_id_fkey"
+            columns: ["linked_problem_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
+      effect_type:
+        | "security"
+        | "compliance"
+        | "reduce_manual_work"
+        | "process_speed"
+        | "transparency"
+        | "audit_prep"
+        | "financial"
+      importance_rating: "critical" | "important" | "can_wait"
+      task_priority: "high" | "medium" | "low"
+      task_status: "ideas" | "planned" | "in-progress" | "completed"
+      task_type: "idea" | "problem"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +421,21 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+      effect_type: [
+        "security",
+        "compliance",
+        "reduce_manual_work",
+        "process_speed",
+        "transparency",
+        "audit_prep",
+        "financial",
+      ],
+      importance_rating: ["critical", "important", "can_wait"],
+      task_priority: ["high", "medium", "low"],
+      task_status: ["ideas", "planned", "in-progress", "completed"],
+      task_type: ["idea", "problem"],
+    },
   },
 } as const

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TaskPriority, PRIORITY_LABELS } from '@/types/task';
+import { TaskPriority, TaskType, EffectType, ImportanceRating, PRIORITY_LABELS, TASK_TYPE_LABELS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS } from '@/types/task';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Upload, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Upload, Loader2, AlertCircle, Lightbulb, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { uploadFileToGDrive } from '@/lib/api/gdrive';
 
@@ -28,12 +28,15 @@ interface AddTaskModalProps {
   onSubmit: (data: {
     title: string;
     description: string;
+    task_type: TaskType;
     author: string;
     priority: TaskPriority;
-    inputDataDescription: string;
-    fileName?: string;
-    fileUrl?: string;
-    comment?: string;
+    effect_type?: EffectType;
+    importance?: ImportanceRating;
+    input_data_description?: string;
+    problem_description?: string;
+    file_name?: string;
+    file_url?: string;
   }) => void;
 }
 
@@ -44,10 +47,13 @@ export function AddTaskModal({ open, onClose, onSubmit }: AddTaskModalProps) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    task_type: 'idea' as TaskType,
     author: '',
     priority: 'medium' as TaskPriority,
-    inputDataDescription: '',
-    comment: '',
+    effect_type: '' as EffectType | '',
+    importance: '' as ImportanceRating | '',
+    input_data_description: '',
+    problem_description: '',
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,6 +62,22 @@ export function AddTaskModal({ open, onClose, onSubmit }: AddTaskModalProps) {
       setSelectedFile(file);
       setUploadProgress('idle');
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      task_type: 'idea',
+      author: '',
+      priority: 'medium',
+      effect_type: '',
+      importance: '',
+      input_data_description: '',
+      problem_description: '',
+    });
+    setSelectedFile(null);
+    setUploadProgress('idle');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,8 +95,20 @@ export function AddTaskModal({ open, onClose, onSubmit }: AddTaskModalProps) {
       toast.error('Прикрепите файл с входными данными');
       return;
     }
-    if (!formData.inputDataDescription.trim()) {
+    if (!formData.input_data_description.trim()) {
       toast.error('Опишите входные данные');
+      return;
+    }
+    if (!formData.effect_type) {
+      toast.error('Выберите тип эффекта');
+      return;
+    }
+    if (!formData.importance) {
+      toast.error('Выберите оценку важности');
+      return;
+    }
+    if (formData.task_type === 'problem' && !formData.problem_description.trim()) {
+      toast.error('Опишите проблему');
       return;
     }
 
@@ -95,51 +129,74 @@ export function AddTaskModal({ open, onClose, onSubmit }: AddTaskModalProps) {
       setUploadProgress('success');
 
       onSubmit({
-        ...formData,
-        fileName: selectedFile.name,
-        fileUrl: uploadResult.fileUrl,
+        title: formData.title,
+        description: formData.description,
+        task_type: formData.task_type,
+        author: formData.author || 'Аноним',
+        priority: formData.priority,
+        effect_type: formData.effect_type || undefined,
+        importance: formData.importance || undefined,
+        input_data_description: formData.input_data_description,
+        problem_description: formData.task_type === 'problem' ? formData.problem_description : undefined,
+        file_name: selectedFile.name,
+        file_url: uploadResult.fileUrl,
       });
 
-      // Reset form
-      setFormData({
-        title: '',
-        description: '',
-        author: '',
-        priority: 'medium',
-        inputDataDescription: '',
-        comment: '',
-      });
-      setSelectedFile(null);
-      setUploadProgress('idle');
+      resetForm();
       onClose();
       
-      toast.success('Идея успешно добавлена! Файл загружен в Google Drive.');
+      toast.success('Запись успешно добавлена! Файл загружен в Google Drive.');
     } catch (error) {
       console.error('Submit error:', error);
       setUploadProgress('error');
-      toast.error('Произошла ошибка при создании задачи');
+      toast.error('Произошла ошибка при создании записи');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { resetForm(); onClose(); } }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl">Добавить идею / задачу</DialogTitle>
+          <DialogTitle className="text-xl">Добавить идею / проблему</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Task type */}
+          <div className="space-y-2">
+            <Label>Тип записи <span className="text-destructive">*</span></Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={formData.task_type === 'idea' ? 'default' : 'outline'}
+                className="flex-1"
+                onClick={() => setFormData({ ...formData, task_type: 'idea' })}
+              >
+                <Lightbulb className="h-4 w-4 mr-2" />
+                Идея
+              </Button>
+              <Button
+                type="button"
+                variant={formData.task_type === 'problem' ? 'destructive' : 'outline'}
+                className="flex-1"
+                onClick={() => setFormData({ ...formData, task_type: 'problem' })}
+              >
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Проблема
+              </Button>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="title">
-              Название задачи <span className="text-destructive">*</span>
+              Название <span className="text-destructive">*</span>
             </Label>
             <Input
               id="title"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="Краткое название задачи"
+              placeholder="Краткое название"
             />
           </div>
 
@@ -151,10 +208,26 @@ export function AddTaskModal({ open, onClose, onSubmit }: AddTaskModalProps) {
               id="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Подробное описание задачи или идеи"
+              placeholder="Подробное описание"
               rows={3}
             />
           </div>
+
+          {/* Problem description - only for problem type */}
+          {formData.task_type === 'problem' && (
+            <div className="space-y-2">
+              <Label htmlFor="problem_description">
+                Описание проблемы <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="problem_description"
+                value={formData.problem_description}
+                onChange={(e) => setFormData({ ...formData, problem_description: e.target.value })}
+                placeholder="Что именно мешает работать сейчас?"
+                rows={2}
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -178,6 +251,46 @@ export function AddTaskModal({ open, onClose, onSubmit }: AddTaskModalProps) {
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Тип эффекта <span className="text-destructive">*</span></Label>
+              <Select
+                value={formData.effect_type}
+                onValueChange={(value: EffectType) => setFormData({ ...formData, effect_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(EFFECT_TYPE_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Оценка важности <span className="text-destructive">*</span></Label>
+              <Select
+                value={formData.importance}
+                onValueChange={(value: ImportanceRating) => setFormData({ ...formData, importance: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(IMPORTANCE_LABELS).map(([value, label]) => (
                     <SelectItem key={value} value={value}>
                       {label}
                     </SelectItem>
@@ -217,25 +330,14 @@ export function AddTaskModal({ open, onClose, onSubmit }: AddTaskModalProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="inputDataDescription">
+            <Label htmlFor="input_data_description">
               Описание входных данных <span className="text-destructive">*</span>
             </Label>
             <Textarea
-              id="inputDataDescription"
-              value={formData.inputDataDescription}
-              onChange={(e) => setFormData({ ...formData, inputDataDescription: e.target.value })}
+              id="input_data_description"
+              value={formData.input_data_description}
+              onChange={(e) => setFormData({ ...formData, input_data_description: e.target.value })}
               placeholder="Что это за файл и для чего он нужен"
-              rows={2}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="comment">Комментарий (необязательно)</Label>
-            <Textarea
-              id="comment"
-              value={formData.comment}
-              onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
-              placeholder="Дополнительные заметки"
               rows={2}
             />
           </div>
@@ -243,12 +345,12 @@ export function AddTaskModal({ open, onClose, onSubmit }: AddTaskModalProps) {
           <div className="flex items-start gap-2 p-3 bg-chart-1/10 rounded-lg text-sm">
             <AlertCircle className="h-4 w-4 text-chart-5 mt-0.5 shrink-0" />
             <p className="text-chart-5">
-              Задача будет создана в статусе «Идеи» и появится на дорожной карте после модерации.
+              Запись будет создана в статусе «Идеи» и появится на дорожной карте.
             </p>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={() => { resetForm(); onClose(); }}>
               Отмена
             </Button>
             <Button type="submit" disabled={isSubmitting}>
@@ -258,7 +360,7 @@ export function AddTaskModal({ open, onClose, onSubmit }: AddTaskModalProps) {
                   Загрузка...
                 </>
               ) : (
-                'Добавить идею'
+                'Добавить'
               )}
             </Button>
           </DialogFooter>
