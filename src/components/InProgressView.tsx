@@ -21,7 +21,8 @@ const TaskTypeIcon = ({ type }: { type: Task['task_type'] }) => {
 };
 
 export function InProgressView({ tasks, loading, onTaskClick }: InProgressViewProps) {
-  const inProgressTasks = tasks.filter(t => t.status === 'in-progress');
+  // Filter only in-progress tasks and exclude announcements
+  const inProgressTasks = tasks.filter(t => t.status === 'in-progress' && t.task_type !== 'announcement');
 
   if (loading) {
     return (
