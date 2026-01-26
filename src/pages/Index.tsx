@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Task, TaskStatus, TaskPriority, TaskType, EffectType, ImportanceRating, DigitizationSection, STATUS_LABELS } from '@/types/task';
 import { useGSheetsTasks } from '@/hooks/useGSheetsTasks';
-import { useAnnouncementReadStatus, setUserId, hasUserId } from '@/hooks/useAnnouncementReadStatus';
-import { isGSheetsMode } from '@/lib/api/gsheets';
+import { useAnnouncementReadStatus, hasUserId } from '@/hooks/useAnnouncementReadStatus';
+import { isAuthenticated, clearSession, isAdmin } from '@/lib/auth/session';
 import { useSwipe } from '@/hooks/useSwipe';
 import { DndContext, DragEndEvent, DragOverlay, pointerWithin, useSensor, useSensors, PointerSensor, TouchSensor } from '@dnd-kit/core';
 import { Header } from '@/components/Header';
@@ -16,7 +16,7 @@ import { InProgressView } from '@/components/InProgressView';
 import { AdditionalSectionsPage } from '@/components/AdditionalSectionsPage';
 import { MigrationSetup } from '@/components/MigrationSetup';
 import { SyncStatusIndicator } from '@/components/SyncStatusIndicator';
-import { UserNamePrompt } from '@/components/UserNamePrompt';
+import { LoginScreen } from '@/components/LoginScreen';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 const STATUSES: TaskStatus[] = ['ideas', 'planned', 'in-progress', 'review', 'completed'];
 
 const Index = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(isAuthenticated());
   const { tasks, loading, addTask, updateTask, refetch, syncStatus, lastSyncTime, manualSync } = useGSheetsTasks();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -36,7 +37,6 @@ const Index = () => {
   const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus>('ideas');
   const [showMigration, setShowMigration] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const [showUserNamePrompt, setShowUserNamePrompt] = useState(!hasUserId());
   
   // DnD sensors with activation constraints to allow clicks
   const sensors = useSensors(
@@ -115,13 +115,17 @@ const Index = () => {
   // Track read status for announcements
   const { unreadCount, markAllAsRead, isUnread, hasUnread, needsUserName } = useAnnouncementReadStatus(announcements);
 
-  // Handle user name submission
-  const handleUserNameSubmit = useCallback((name: string) => {
-    setUserId(name);
-    setShowUserNamePrompt(false);
-    // Trigger a refetch to get read statuses for the new user
-    window.location.reload();
+  // Handle logout
+  const handleLogout = useCallback(() => {
+    clearSession();
+    setIsLoggedIn(false);
   }, []);
+
+  // Handle login success
+  const handleLoginSuccess = useCallback(() => {
+    setIsLoggedIn(true);
+    refetch();
+  }, [refetch]);
 
   // Mark announcements as read when user opens the tab
   useEffect(() => {
@@ -215,7 +219,6 @@ const Index = () => {
     summary: string;
     description?: string;
     task_type: TaskType;
-    author: string;
     priority: TaskPriority;
     effect_type?: EffectType;
     importance?: ImportanceRating;
@@ -231,7 +234,7 @@ const Index = () => {
       summary: data.summary,
       description: data.description || null,
       task_type: data.task_type,
-      author: data.author || 'Аноним',
+      author: '', // Will be set by server from session
       priority: data.priority,
       effect_type: data.effect_type || null,
       importance: data.importance || null,
@@ -282,11 +285,16 @@ const Index = () => {
 
   const activeDragTask = activeDragId ? tasks.find(t => t.id === activeDragId) : null;
 
+  // Show login screen if not authenticated
+  if (!isLoggedIn) {
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  }
+
   // Show migration setup if not configured
   if (showMigration) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <Header />
+        <Header onLogout={handleLogout} />
         <main className="flex-1 container mx-auto px-3 sm:px-4 py-8">
           <MigrationSetup onComplete={() => {
             setShowMigration(false);
@@ -299,7 +307,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header />
+      <Header onLogout={handleLogout} />
       
       <main className="flex-1 container mx-auto px-3 sm:px-4 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -525,11 +533,6 @@ const Index = () => {
         onClose={() => setIsAddModalOpen(false)}
         onSubmit={handleAddTask}
         defaultTaskType={defaultTaskType}
-      />
-
-      <UserNamePrompt
-        open={showUserNamePrompt}
-        onSubmit={handleUserNameSubmit}
       />
     </div>
   );

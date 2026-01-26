@@ -221,9 +221,9 @@ export function useGSheetsComments(taskId: string) {
   const addComment = async (author: string, text: string) => {
     try {
       if (gsheetsEnabled) {
+        // Note: author is now set by server from session
         const newComment = await gsheetsCommentsApi.create({
           task_id: taskId,
-          author,
           text,
         });
         setComments((prev) => [...prev, newComment]);
@@ -233,7 +233,7 @@ export function useGSheetsComments(taskId: string) {
           .from('task_comments')
           .insert({
             task_id: taskId,
-            author,
+            author: author || 'Аноним',
             text,
           })
           .select()

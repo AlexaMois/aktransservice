@@ -1,13 +1,12 @@
 import { Task, TaskComment, Announcement } from '@/types/task';
+import { getSession } from '@/lib/auth/session';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 // Google Sheets mode is now always enabled since we have GOOGLE_SHEETS_ID secret configured
-// The edge function will use the GOOGLE_SHEETS_ID environment variable
 export const isGSheetsMode = () => {
-  // Check localStorage first (for backward compatibility), then always true since secret is configured
-  return localStorage.getItem('GOOGLE_SHEETS_ID') || true;
+  return true;
 };
 
 export const getGSheetsId = () => {
@@ -19,20 +18,34 @@ export const setGSheetsId = (id: string) => {
 };
 
 async function callGSheetsAPI(action: string, entity: string, data?: any, id?: string) {
-  const sheetsId = getGSheetsId();
+  const session = getSession();
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+  };
+  
+  // Add session header for authenticated requests
+  if (session) {
+    headers['X-App-Session'] = JSON.stringify(session);
+  }
   
   const response = await fetch(`${SUPABASE_URL}/functions/v1/gsheets-api`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    },
+    headers,
     body: JSON.stringify({ action, entity, data, id }),
   });
   
   const result = await response.json();
   
   if (!result.success) {
+    // Handle specific error codes
+    if (response.status === 401) {
+      throw new Error('Требуется авторизация');
+    }
+    if (response.status === 403) {
+      throw new Error(result.error || 'Доступ запрещён');
+    }
     throw new Error(result.error || 'API call failed');
   }
   
@@ -49,10 +62,12 @@ export const gsheetsTasksApi = {
   },
   
   async create(task: Omit<Task, 'id' | 'created_at' | 'updated_at'>): Promise<Task> {
+    // Note: author will be set by server from session
     return callGSheetsAPI('create', 'tasks', task);
   },
   
   async update(id: string, updates: Partial<Task>): Promise<Task> {
+    // Note: author cannot be changed by client
     return callGSheetsAPI('update', 'tasks', updates, id);
   },
   
@@ -92,7 +107,8 @@ export const gsheetsCommentsApi = {
     );
   },
   
-  async create(comment: { task_id: string; author: string; text: string }): Promise<TaskComment> {
+  async create(comment: { task_id: string; text: string }): Promise<TaskComment> {
+    // Note: author will be set by server from session
     return callGSheetsAPI('create', 'comments', comment);
   },
 };
@@ -106,13 +122,15 @@ export interface ReadStatus {
 }
 
 export const gsheetsReadStatusApi = {
-  async list(userId: string): Promise<ReadStatus[]> {
-    const data = await callGSheetsAPI('list', 'readStatus', { user_id: userId });
+  async list(): Promise<ReadStatus[]> {
+    // user_id is now taken from session on server side
+    const data = await callGSheetsAPI('list', 'readStatus', {});
     return data;
   },
   
-  async markAsRead(userId: string, announcementIds: string[]): Promise<ReadStatus[]> {
-    return callGSheetsAPI('create', 'readStatus', { user_id: userId, announcement_ids: announcementIds });
+  async markAsRead(announcementIds: string[]): Promise<ReadStatus[]> {
+    // user_id is now taken from session on server side
+    return callGSheetsAPI('create', 'readStatus', { announcement_ids: announcementIds });
   },
 };
 
