@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Task, TaskStatus, TaskPriority, TaskType, EffectType, ImportanceRating, STATUS_LABELS } from '@/types/task';
 import { useTasks } from '@/hooks/useTasks';
+import { useSwipe } from '@/hooks/useSwipe';
 import { Header } from '@/components/Header';
 import { SearchAndFilters } from '@/components/SearchAndFilters';
 import { KanbanColumn } from '@/components/KanbanColumn';
@@ -11,9 +12,9 @@ import { InProgressView } from '@/components/InProgressView';
 import { AdditionalSectionsPage } from '@/components/AdditionalSectionsPage';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Map, Megaphone, Zap, FolderOpen } from 'lucide-react';
+import { Loader2, Map, Megaphone, Zap, FolderOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TaskCard } from '@/components/TaskCard';
+import { Button } from '@/components/ui/button';
 
 const STATUSES: TaskStatus[] = ['ideas', 'planned', 'in-progress', 'completed'];
 
@@ -32,6 +33,27 @@ const Index = () => {
   const [effectTypeFilter, setEffectTypeFilter] = useState<EffectType | 'all'>('all');
   const [importanceFilter, setImportanceFilter] = useState<ImportanceRating | 'all'>('all');
   const [ownerFilter, setOwnerFilter] = useState('');
+
+  // Swipe navigation for mobile
+  const currentStatusIndex = STATUSES.indexOf(mobileStatusFilter);
+  
+  const goToNextStatus = useCallback(() => {
+    if (currentStatusIndex < STATUSES.length - 1) {
+      setMobileStatusFilter(STATUSES[currentStatusIndex + 1]);
+    }
+  }, [currentStatusIndex]);
+
+  const goToPrevStatus = useCallback(() => {
+    if (currentStatusIndex > 0) {
+      setMobileStatusFilter(STATUSES[currentStatusIndex - 1]);
+    }
+  }, [currentStatusIndex]);
+
+  const swipeHandlers = useSwipe({
+    onSwipeLeft: goToNextStatus,
+    onSwipeRight: goToPrevStatus,
+    minSwipeDistance: 50,
+  });
 
   // Get unique owners for filter dropdown
   const owners = useMemo(() => {
@@ -192,27 +214,61 @@ const Index = () => {
               </div>
             ) : (
               <>
-                {/* Mobile view - single column with status selector */}
+                {/* Mobile view - single column with swipe */}
                 <div className="block md:hidden">
-                  <div className="mb-4">
-                    <Select 
-                      value={mobileStatusFilter} 
-                      onValueChange={(v) => setMobileStatusFilter(v as TaskStatus)}
+                  {/* Status navigation */}
+                  <div className="mb-4 flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={goToPrevStatus}
+                      disabled={currentStatusIndex === 0}
+                      className="shrink-0"
                     >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STATUSES.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {STATUS_LABELS[status]} ({tasksByStatus[status].length})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    
+                    <div className="flex-1 text-center">
+                      <div className="font-medium text-foreground">
+                        {STATUS_LABELS[mobileStatusFilter]}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {tasksByStatus[mobileStatusFilter].length} задач • Свайп ← →
+                      </div>
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={goToNextStatus}
+                      disabled={currentStatusIndex === STATUSES.length - 1}
+                      className="shrink-0"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {/* Status dots indicator */}
+                  <div className="flex justify-center gap-1.5 mb-4">
+                    {STATUSES.map((status, index) => (
+                      <button
+                        key={status}
+                        onClick={() => setMobileStatusFilter(status)}
+                        className={`h-2 rounded-full transition-all ${
+                          index === currentStatusIndex 
+                            ? 'w-6 bg-primary' 
+                            : 'w-2 bg-muted-foreground/30'
+                        }`}
+                        aria-label={STATUS_LABELS[status]}
+                      />
+                    ))}
                   </div>
                   
-                  <div className="space-y-3">
+                  {/* Swipeable task list */}
+                  <div 
+                    className="space-y-3 min-h-[200px]"
+                    {...swipeHandlers}
+                  >
                     {tasksByStatus[mobileStatusFilter].map((task) => (
                       <TaskCard
                         key={task.id}
@@ -222,7 +278,8 @@ const Index = () => {
                     ))}
                     {tasksByStatus[mobileStatusFilter].length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
-                        Нет задач в этом статусе
+                        <p>Нет задач в этом статусе</p>
+                        <p className="text-xs mt-1">Свайпните влево или вправо</p>
                       </div>
                     )}
                   </div>
