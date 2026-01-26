@@ -1,6 +1,7 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Task, TaskStatus, TaskPriority, TaskType, EffectType, ImportanceRating, DigitizationSection, STATUS_LABELS } from '@/types/task';
 import { useGSheetsTasks } from '@/hooks/useGSheetsTasks';
+import { useAnnouncementReadStatus } from '@/hooks/useAnnouncementReadStatus';
 import { isGSheetsMode } from '@/lib/api/gsheets';
 import { useSwipe } from '@/hooks/useSwipe';
 import { DndContext, DragEndEvent, DragOverlay, pointerWithin, useSensor, useSensors, PointerSensor, TouchSensor } from '@dnd-kit/core';
@@ -10,13 +11,14 @@ import { KanbanColumn } from '@/components/KanbanColumn';
 import { DroppableKanbanColumn } from '@/components/DroppableKanbanColumn';
 import { TaskDetailModal } from '@/components/TaskDetailModal';
 import { AddTaskModal } from '@/components/AddTaskModal';
-import { AnnouncementsPage } from '@/components/AnnouncementsPage';
+import { AnnouncementsList } from '@/components/AnnouncementsList';
 import { InProgressView } from '@/components/InProgressView';
 import { AdditionalSectionsPage } from '@/components/AdditionalSectionsPage';
 import { MigrationSetup } from '@/components/MigrationSetup';
 import { SyncStatusIndicator } from '@/components/SyncStatusIndicator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { Loader2, Map, Megaphone, Zap, FolderOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TaskCard } from '@/components/TaskCard';
 import { Button } from '@/components/ui/button';
@@ -89,9 +91,42 @@ const Index = () => {
     return Array.from(ownerSet).sort();
   }, [tasks]);
 
-  // Apply filters
+  // Separate announcements from regular tasks
+  const { announcements, regularTasks } = useMemo(() => {
+    const announcements: Task[] = [];
+    const regularTasks: Task[] = [];
+    
+    tasks.forEach((task) => {
+      if (task.task_type === 'announcement') {
+        announcements.push(task);
+      } else {
+        regularTasks.push(task);
+      }
+    });
+    
+    // Sort announcements by created_at descending (newest first)
+    announcements.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    
+    return { announcements, regularTasks };
+  }, [tasks]);
+
+  // Track read status for announcements
+  const { unreadCount, markAllAsRead, isUnread, hasUnread } = useAnnouncementReadStatus(announcements);
+
+  // Mark announcements as read when user opens the tab
+  useEffect(() => {
+    if (activeTab === 'announcements' && hasUnread) {
+      // Delay marking as read so user can see the "new" badges
+      const timer = setTimeout(() => {
+        markAllAsRead();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, hasUnread, markAllAsRead]);
+
+  // Apply filters (only to regular tasks, not announcements)
   const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
+    return regularTasks.filter((task) => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -141,7 +176,7 @@ const Index = () => {
 
       return true;
     });
-  }, [tasks, searchQuery, statusFilter, priorityFilter, taskTypeFilter, effectTypeFilter, importanceFilter, ownerFilter, sectionFilter]);
+  }, [regularTasks, searchQuery, statusFilter, priorityFilter, taskTypeFilter, effectTypeFilter, importanceFilter, ownerFilter, sectionFilter]);
 
   // Group tasks by status
   const tasksByStatus = useMemo(() => {
@@ -270,9 +305,17 @@ const Index = () => {
                 <Zap className="h-4 w-4" />
                 <span>В работе</span>
               </TabsTrigger>
-              <TabsTrigger value="announcements" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
+              <TabsTrigger value="announcements" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5 relative">
                 <Megaphone className="h-4 w-4" />
                 <span>Объявления</span>
+                {unreadCount > 0 && (
+                  <Badge 
+                    variant="destructive" 
+                    className="absolute -top-1 -right-1 h-5 min-w-5 px-1.5 text-[10px] flex items-center justify-center"
+                  >
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Badge>
+                )}
               </TabsTrigger>
               <TabsTrigger value="sections" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
                 <FolderOpen className="h-4 w-4" />
@@ -444,7 +487,11 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="announcements" className="mt-4">
-            <AnnouncementsPage />
+            <AnnouncementsList 
+              announcements={announcements} 
+              loading={loading}
+              isUnread={isUnread}
+            />
           </TabsContent>
 
           <TabsContent value="sections" className="mt-4">
