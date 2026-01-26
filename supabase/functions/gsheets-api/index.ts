@@ -7,7 +7,16 @@ const corsHeaders = {
 
 // Google Sheets configuration - use environment variable
 const getSpreadsheetId = () => {
-  return Deno.env.get('GOOGLE_SHEETS_ID') || '';
+  const rawValue = Deno.env.get('GOOGLE_SHEETS_ID') || '';
+  
+  // Extract ID from full URL if necessary
+  // Format: https://docs.google.com/spreadsheets/d/{ID}/...
+  const urlMatch = rawValue.match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (urlMatch) {
+    return urlMatch[1];
+  }
+  
+  return rawValue;
 };
 
 const SHEETS = {
@@ -108,17 +117,27 @@ function taskToRow(task: Record<string, any>, columns: string[]): string[] {
 
 async function getSheetData(accessToken: string, sheetName: string, spreadsheetId: string): Promise<string[][]> {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A:Z`;
+  console.log('Fetching sheet data from:', url);
+  
   const response = await fetch(url, {
     headers: { 'Authorization': `Bearer ${accessToken}` },
   });
   
+  const responseText = await response.text();
+  console.log('Sheet API response status:', response.status);
+  
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Failed to get sheet data: ${error.error?.message}`);
+    console.error('Sheet API error response:', responseText);
+    throw new Error(`Failed to get sheet data: ${response.status} - ${responseText.substring(0, 200)}`);
   }
   
-  const data = await response.json();
-  return data.values || [];
+  try {
+    const data = JSON.parse(responseText);
+    return data.values || [];
+  } catch (e) {
+    console.error('Failed to parse JSON:', responseText.substring(0, 200));
+    throw e;
+  }
 }
 
 async function appendRow(accessToken: string, sheetName: string, values: string[], spreadsheetId: string): Promise<void> {
@@ -208,6 +227,8 @@ Deno.serve(async (req) => {
     }
     
     const spreadsheetId = getSpreadsheetId();
+    console.log('Using spreadsheet ID:', spreadsheetId);
+    
     if (!spreadsheetId) {
       throw new Error('GOOGLE_SHEETS_ID not configured');
     }

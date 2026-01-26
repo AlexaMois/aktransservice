@@ -27,7 +27,7 @@ const Index = () => {
   const [defaultTaskType, setDefaultTaskType] = useState<TaskType>('idea');
   const [activeTab, setActiveTab] = useState('roadmap');
   const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus>('ideas');
-  const [showMigration, setShowMigration] = useState(!isGSheetsMode());
+  const [showMigration, setShowMigration] = useState(false); // Migration is now done via secrets
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
