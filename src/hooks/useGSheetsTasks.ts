@@ -8,7 +8,7 @@ import { useSyncStatus, SyncStatus } from './useSyncStatus';
 const DEFAULT_POLLING_INTERVAL = 30000;
 
 // Use Google Sheets if configured, otherwise fall back to Supabase
-export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL) {
+export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enabled = true) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const gsheetsEnabled = isGSheetsMode();
@@ -22,10 +22,16 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL) {
     setSyncCallback 
   } = useSyncStatus({ 
     pollingInterval, 
-    enabled: gsheetsEnabled as boolean 
+    enabled: (gsheetsEnabled as boolean) && enabled,
   });
 
   const fetchTasks = useCallback(async (showLoading = true) => {
+    if (!enabled) {
+      setTasks([]);
+      setLoading(false);
+      isInitialLoad.current = false;
+      return;
+    }
     if (showLoading && isInitialLoad.current) {
       setLoading(true);
     }
@@ -55,7 +61,7 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL) {
       setLoading(false);
       isInitialLoad.current = false;
     }
-  }, [gsheetsEnabled]);
+  }, [enabled, gsheetsEnabled]);
 
   // Set up sync callback for polling
   useEffect(() => {
@@ -64,8 +70,9 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL) {
 
   // Initial fetch
   useEffect(() => {
+    if (!enabled) return;
     fetchTasks(true);
-  }, [fetchTasks]);
+  }, [enabled, fetchTasks]);
 
   const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'status'>) => {
     try {
