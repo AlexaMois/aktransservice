@@ -42,12 +42,10 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
           {task.summary}
         </p>
         
-        {task.digitization_section && (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <FolderOpen className="h-3 w-3" />
-            <span className="truncate">{DIGITIZATION_SECTION_LABELS[task.digitization_section]}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <FolderOpen className="h-3 w-3" />
+          <span className="truncate">{DIGITIZATION_SECTION_LABELS[task.digitization_section || 'documents']}</span>
+        </div>
         
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5">
