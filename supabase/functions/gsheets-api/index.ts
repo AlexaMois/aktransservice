@@ -791,6 +791,27 @@ Deno.serve(async (req) => {
         break;
       }
       
+      case 'admin': {
+        // Admin-only endpoints
+        const user = (req as any).user as AppUser;
+        
+        if (action === 'getSpreadsheetUrl') {
+          // Return the spreadsheet URL for admin users
+          if (user?.role !== 'admin') {
+            return new Response(
+              JSON.stringify({ success: false, error: 'Admin access required' }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          result = {
+            url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
+            spreadsheetId: spreadsheetId,
+          };
+        }
+        break;
+      }
+      
       case 'tasks': {
         const sheetName = SHEETS.tasks;
         const user = (req as any).user as AppUser;
