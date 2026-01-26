@@ -38,11 +38,10 @@ export function DraggableTaskCard({ task, onClick }: DraggableTaskCardProps) {
       style={style}
       {...listeners}
       {...attributes}
-      className={`cursor-grab transition-all duration-200 border-border/50 bg-card p-2.5 touch-none
+      className={`cursor-grab transition-all duration-200 border-border/50 bg-card p-2.5 touch-none overflow-hidden
         ${isDragging ? 'opacity-50 shadow-lg scale-105 z-50' : 'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]'}
       `}
       onClick={(e) => {
-        // Only trigger click if not dragging
         if (!isDragging) {
           onClick();
         }
@@ -54,13 +53,16 @@ export function DraggableTaskCard({ task, onClick }: DraggableTaskCardProps) {
       </Badge>
       
       <h3 
-        className="font-medium text-xs leading-tight text-card-foreground line-clamp-2 mb-1"
-        style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
+        className="font-medium text-xs leading-tight text-card-foreground mb-1 break-words"
+        style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', hyphens: 'auto' }}
       >
         {task.title}
       </h3>
       
-      <p className="text-[10px] text-muted-foreground line-clamp-1">
+      <p 
+        className="text-[10px] text-muted-foreground break-words"
+        style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', hyphens: 'auto' }}
+      >
         {task.summary}
       </p>
     </Card>
