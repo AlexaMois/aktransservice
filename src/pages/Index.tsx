@@ -29,7 +29,7 @@ const STATUSES: TaskStatus[] = ['ideas', 'planned', 'in-progress', 'review', 'co
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(isAuthenticated());
-  const { tasks, loading, addTask, updateTask, refetch, syncStatus, lastSyncTime, manualSync } = useGSheetsTasks();
+  const { tasks, loading, addTask, updateTask, refetch, syncStatus, lastSyncTime, manualSync } = useGSheetsTasks(undefined, isLoggedIn);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [defaultTaskType, setDefaultTaskType] = useState<TaskType>('idea');

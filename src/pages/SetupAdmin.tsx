@@ -13,6 +13,7 @@ export default function SetupAdmin() {
   const [secretKey, setSecretKey] = useState('');
   const [adminName, setAdminName] = useState('Администратор');
   const [adminAccessCode, setAdminAccessCode] = useState('');
+  const [staffAccessCode, setStaffAccessCode] = useState('akts2026');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -32,6 +33,11 @@ export default function SetupAdmin() {
       return;
     }
 
+    if (!staffAccessCode.trim()) {
+      setError('Введите общий код доступа для сотрудников');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -48,6 +54,7 @@ export default function SetupAdmin() {
           data: {
             admin_name: adminName.trim(),
             admin_access_code: adminAccessCode.trim(),
+            user_access_code: staffAccessCode.trim(),
           },
         }),
       });
@@ -82,7 +89,11 @@ export default function SetupAdmin() {
             <CheckCircle className="h-12 w-12 mx-auto text-green-500 mb-4" />
             <h2 className="text-xl font-bold mb-2">Готово!</h2>
             <p className="text-muted-foreground mb-4">
-              Администратор создан. Теперь вы можете войти с кодом доступа: <strong>{adminAccessCode}</strong>
+              Администратор создан.
+              <br />
+              Код администратора: <strong>{adminAccessCode}</strong>
+              <br />
+              Общий код для сотрудников: <strong>{staffAccessCode}</strong>
             </p>
             <Button onClick={() => window.location.href = '/'}>
               Перейти на главную
@@ -153,6 +164,21 @@ export default function SetupAdmin() {
               />
               <p className="text-xs text-muted-foreground">
                 Этот код будет использоваться для входа в систему
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="staffAccessCode">Общий код для сотрудников</Label>
+              <Input
+                id="staffAccessCode"
+                type="text"
+                placeholder="Например: akts2026"
+                value={staffAccessCode}
+                onChange={(e) => setStaffAccessCode(e.target.value)}
+                disabled={isLoading}
+              />
+              <p className="text-xs text-muted-foreground">
+                По этому коду сотрудники смогут входить, а система создаст им отдельные профили по имени
               </p>
             </div>
 

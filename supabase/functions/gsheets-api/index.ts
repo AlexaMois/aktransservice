@@ -39,6 +39,8 @@ const SHEETS = {
   comments: 'Comments',
   readStatus: 'ReadStatus',
   users: 'Users',
+  userRoles: 'UserRoles',
+  accessCodes: 'AccessCodes',
 };
 
 interface ServiceAccountKey {
@@ -52,6 +54,19 @@ interface AppUser {
   name: string;
   role: 'admin' | 'user';
   access_code: string;
+  active: boolean;
+  created_at: string;
+}
+
+interface UserRoleRow {
+  user_id: string;
+  role: 'admin' | 'user';
+  created_at: string;
+}
+
+interface AccessCodeEntry {
+  code: string;
+  role: 'admin' | 'user';
   active: boolean;
   created_at: string;
 }
@@ -130,6 +145,12 @@ const ANNOUNCEMENT_COLUMNS = [
 const COMMENT_COLUMNS = ['id', 'task_id', 'author', 'text', 'created_at'];
 const READ_STATUS_COLUMNS = ['id', 'announcement_id', 'user_id', 'read_at'];
 const USER_COLUMNS = ['user_id', 'name', 'role', 'access_code', 'active', 'created_at'];
+const USER_ROLE_COLUMNS = ['user_id', 'role', 'created_at'];
+const ACCESS_CODE_COLUMNS = ['code', 'role', 'active', 'created_at'];
+
+function idx(headers: string[], key: string): number {
+  return headers.indexOf(key);
+}
 
 // Sheet helper functions
 async function ensureSheetExists(accessToken: string, sheetName: string, headers: string[], spreadsheetId: string): Promise<void> {
@@ -284,6 +305,39 @@ async function deleteRow(accessToken: string, sheetName: string, rowIndex: numbe
   }
 }
 
+async function getRoleForUser(accessToken: string, spreadsheetId: string, userId: string): Promise<'admin' | 'user'> {
+  await ensureSheetExists(accessToken, SHEETS.userRoles, USER_ROLE_COLUMNS, spreadsheetId);
+  const rows = await getSheetData(accessToken, SHEETS.userRoles, spreadsheetId);
+  if (rows.length <= 1) return 'user';
+  const headers = rows[0];
+  const userIdIndex = idx(headers, 'user_id');
+  const roleIndex = idx(headers, 'role');
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (row[userIdIndex] === userId && row[roleIndex] === 'admin') return 'admin';
+  }
+  return 'user';
+}
+
+async function getAccessCodeEntry(accessToken: string, spreadsheetId: string, code: string): Promise<AccessCodeEntry | null> {
+  await ensureSheetExists(accessToken, SHEETS.accessCodes, ACCESS_CODE_COLUMNS, spreadsheetId);
+  const rows = await getSheetData(accessToken, SHEETS.accessCodes, spreadsheetId);
+  if (rows.length <= 1) return null;
+  const headers = rows[0];
+  const codeIndex = idx(headers, 'code');
+  const activeIndex = idx(headers, 'active');
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (
+      row[codeIndex] === code &&
+      (row[activeIndex] === 'true' || row[activeIndex] === 'TRUE')
+    ) {
+      return rowToObject(row, headers) as AccessCodeEntry;
+    }
+  }
+  return null;
+}
+
 // Validate user session from header
 async function validateSession(
   sessionHeader: string | null, 
@@ -303,9 +357,9 @@ async function validateSession(
     if (rows.length <= 1) return null;
     
     const headers = rows[0];
-    const userIdIndex = headers.indexOf('user_id');
-    const accessCodeIndex = headers.indexOf('access_code');
-    const activeIndex = headers.indexOf('active');
+    const userIdIndex = idx(headers, 'user_id');
+    const accessCodeIndex = idx(headers, 'access_code');
+    const activeIndex = idx(headers, 'active');
     
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
@@ -314,7 +368,10 @@ async function validateSession(
         row[accessCodeIndex] === session.access_code &&
         (row[activeIndex] === 'true' || row[activeIndex] === 'TRUE')
       ) {
-        return rowToObject(row, headers) as AppUser;
+        const user = rowToObject(row, headers) as AppUser;
+        // SECURITY: do not trust role from client/session; load role from separate sheet
+        user.role = await getRoleForUser(accessToken, spreadsheetId, user.user_id);
+        return user;
       }
     }
     
@@ -428,10 +485,10 @@ Deno.serve(async (req) => {
           }
           
           const headers = rows[0];
-          const accessCodeIndex = headers.indexOf('access_code');
-          const activeIndex = headers.indexOf('active');
-          const userIdIndex = headers.indexOf('user_id');
-          const nameIndex = headers.indexOf('name');
+          const accessCodeIndex = idx(headers, 'access_code');
+          const activeIndex = idx(headers, 'active');
+          const userIdIndex = idx(headers, 'user_id');
+          const nameIndex = idx(headers, 'name');
           
           let foundUser: AppUser | null = null;
           let foundRowIndex = -1;
@@ -447,12 +504,49 @@ Deno.serve(async (req) => {
               break;
             }
           }
-          
+
+          // If code not found in Users, allow "team code" from AccessCodes sheet
           if (!foundUser) {
-            return new Response(
-              JSON.stringify({ success: false, error: 'Код не подошёл. Проверьте и попробуйте снова.' }),
-              { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+            const entry = await getAccessCodeEntry(accessToken, spreadsheetId, accessCode);
+            if (!entry) {
+              return new Response(
+                JSON.stringify({ success: false, error: 'Код не подошёл. Проверьте и попробуйте снова.' }),
+                { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+
+            if (!providedName) {
+              return new Response(
+                JSON.stringify({ success: false, error: 'Введите ваше имя' }),
+                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+
+            // Create a new user record for this name under the shared code
+            const now = new Date().toISOString();
+            const newUser: AppUser = {
+              user_id: crypto.randomUUID(),
+              name: providedName,
+              role: 'user',
+              access_code: accessCode,
+              active: true,
+              created_at: now,
+            };
+
+            await appendRow(accessToken, sheetName, objectToRow(newUser, USER_COLUMNS), spreadsheetId);
+
+            // Store role separately (authoritative)
+            await ensureSheetExists(accessToken, SHEETS.userRoles, USER_ROLE_COLUMNS, spreadsheetId);
+            const roleRow: UserRoleRow = {
+              user_id: newUser.user_id,
+              role: entry.role || 'user',
+              created_at: now,
+            };
+            await appendRow(accessToken, SHEETS.userRoles, objectToRow(roleRow, USER_ROLE_COLUMNS), spreadsheetId);
+
+            newUser.role = roleRow.role;
+            result = newUser;
+            break;
           }
           
           // If user provided a name and it's different, update it
@@ -469,7 +563,9 @@ Deno.serve(async (req) => {
             const row = objectToRow(foundUser, USER_COLUMNS);
             await updateRow(accessToken, sheetName, foundRowIndex + 1, row, spreadsheetId);
           }
-          
+
+          // SECURITY: load role from separate sheet
+          foundUser.role = await getRoleForUser(accessToken, spreadsheetId, foundUser.user_id);
           result = foundUser;
         } else if (action === 'seed') {
           // Seed action: create initial admin user
@@ -486,6 +582,7 @@ Deno.serve(async (req) => {
           
           const adminAccessCode = data?.admin_access_code;
           const adminName = data?.admin_name || 'Администратор';
+          const staffAccessCode = data?.user_access_code;
           
           if (!adminAccessCode) {
             return new Response(
@@ -494,16 +591,18 @@ Deno.serve(async (req) => {
             );
           }
           
-          // Check if admin user already exists
-          const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
-          const headers = rows.length > 0 ? rows[0] : USER_COLUMNS;
-          const roleIndex = headers.indexOf('role');
-          
+          // Check if admin user already exists (authoritative: UserRoles)
+          await ensureSheetExists(accessToken, SHEETS.userRoles, USER_ROLE_COLUMNS, spreadsheetId);
+          const roleRows = await getSheetData(accessToken, SHEETS.userRoles, spreadsheetId);
           let adminExists = false;
-          for (let i = 1; i < rows.length; i++) {
-            if (rows[i][roleIndex] === 'admin') {
-              adminExists = true;
-              break;
+          if (roleRows.length > 1) {
+            const roleHeaders = roleRows[0];
+            const roleIndex = idx(roleHeaders, 'role');
+            for (let i = 1; i < roleRows.length; i++) {
+              if (roleRows[i][roleIndex] === 'admin') {
+                adminExists = true;
+                break;
+              }
             }
           }
           
@@ -527,6 +626,23 @@ Deno.serve(async (req) => {
           
           const row = objectToRow(adminUser, USER_COLUMNS);
           await appendRow(accessToken, sheetName, row, spreadsheetId);
+
+          // Authoritative role row
+          const adminRoleRow: UserRoleRow = { user_id: adminUser.user_id, role: 'admin', created_at: now };
+          await appendRow(accessToken, SHEETS.userRoles, objectToRow(adminRoleRow, USER_ROLE_COLUMNS), spreadsheetId);
+
+          // Optional: seed shared staff code
+          if (staffAccessCode) {
+            await ensureSheetExists(accessToken, SHEETS.accessCodes, ACCESS_CODE_COLUMNS, spreadsheetId);
+            const codes = await getSheetData(accessToken, SHEETS.accessCodes, spreadsheetId);
+            const codeHeaders = codes.length > 0 ? codes[0] : ACCESS_CODE_COLUMNS;
+            const codeIndex = idx(codeHeaders, 'code');
+            const already = codes.slice(1).some(r => r[codeIndex] === staffAccessCode);
+            if (!already) {
+              const entry: AccessCodeEntry = { code: staffAccessCode, role: 'user', active: true, created_at: now };
+              await appendRow(accessToken, SHEETS.accessCodes, objectToRow(entry, ACCESS_CODE_COLUMNS), spreadsheetId);
+            }
+          }
           
           result = { message: 'Admin user created successfully', user_id: adminUser.user_id };
         }
