@@ -147,23 +147,19 @@ const Index = () => {
           <TabsList className="grid w-full grid-cols-4 mb-4">
             <TabsTrigger value="roadmap" className="flex items-center gap-2">
               <Map className="h-4 w-4" />
-              <span className="hidden sm:inline">Дорожная карта</span>
-              <span className="sm:hidden">Карта</span>
+              Дорожная карта
             </TabsTrigger>
             <TabsTrigger value="in-progress" className="flex items-center gap-2">
               <Zap className="h-4 w-4" />
-              <span className="hidden sm:inline">В работе</span>
-              <span className="sm:hidden">В работе</span>
+              В работе
             </TabsTrigger>
             <TabsTrigger value="announcements" className="flex items-center gap-2">
               <Megaphone className="h-4 w-4" />
-              <span className="hidden sm:inline">Объявления</span>
-              <span className="sm:hidden">Объявл.</span>
+              Объявления
             </TabsTrigger>
             <TabsTrigger value="sections" className="flex items-center gap-2">
               <FolderOpen className="h-4 w-4" />
-              <span className="hidden sm:inline">Разделы</span>
-              <span className="sm:hidden">Ещё</span>
+              Разделы
             </TabsTrigger>
           </TabsList>
 
