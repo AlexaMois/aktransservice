@@ -23,7 +23,7 @@ const TaskTypeIcon = ({ type }: { type: Task['task_type'] }) => {
 export function TaskCard({ task, onClick }: TaskCardProps) {
   return (
     <Card 
-      className="cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] border-border/50 bg-card p-2.5"
+      className="cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] border-border/50 bg-card p-2.5 overflow-hidden"
       onClick={onClick}
     >
       <Badge variant="outline" className={`text-[10px] gap-0.5 px-1.5 py-0 h-5 mb-1.5 ${TASK_TYPE_COLORS[task.task_type]}`}>
@@ -32,13 +32,16 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
       </Badge>
       
       <h3 
-        className="font-medium text-xs leading-tight text-card-foreground line-clamp-2 mb-1"
-        style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
+        className="font-medium text-xs leading-tight text-card-foreground mb-1 break-words"
+        style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', hyphens: 'auto' }}
       >
         {task.title}
       </h3>
       
-      <p className="text-[10px] text-muted-foreground line-clamp-1">
+      <p 
+        className="text-[10px] text-muted-foreground break-words"
+        style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', hyphens: 'auto' }}
+      >
         {task.summary}
       </p>
     </Card>
