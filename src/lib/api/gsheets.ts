@@ -97,6 +97,25 @@ export const gsheetsCommentsApi = {
   },
 };
 
+// Read Status API (for tracking which announcements user has read)
+export interface ReadStatus {
+  id: string;
+  announcement_id: string;
+  user_id: string;
+  read_at: string;
+}
+
+export const gsheetsReadStatusApi = {
+  async list(userId: string): Promise<ReadStatus[]> {
+    const data = await callGSheetsAPI('list', 'readStatus', { user_id: userId });
+    return data;
+  },
+  
+  async markAsRead(userId: string, announcementIds: string[]): Promise<ReadStatus[]> {
+    return callGSheetsAPI('create', 'readStatus', { user_id: userId, announcement_ids: announcementIds });
+  },
+};
+
 // Initialize Google Sheets with migration
 export async function initGoogleSheets(existingTasks: Task[], existingAnnouncements: Announcement[]): Promise<string> {
   const response = await fetch(`${SUPABASE_URL}/functions/v1/gsheets-init`, {
