@@ -110,6 +110,10 @@ export function MigrationSetup({ onComplete }: MigrationSetupProps) {
                 Открыть таблицу
               </a>
             </Button>
+            <Button onClick={onComplete}>
+              Перейти к приложению
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
             <Button variant="destructive" onClick={handleDisconnect}>
               Отключить
             </Button>
