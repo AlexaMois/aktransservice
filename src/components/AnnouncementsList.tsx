@@ -1,17 +1,27 @@
-import { Task, TASK_TYPE_LABELS } from '@/types/task';
+import { useState } from 'react';
+import { Task } from '@/types/task';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Megaphone, Calendar, User, ExternalLink, FileText } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LinkifiedText } from '@/components/LinkifiedText';
+import { AnnouncementDetailModal } from '@/components/AnnouncementDetailModal';
 
 interface AnnouncementsListProps {
   announcements: Task[];
   loading: boolean;
   isUnread?: (announcement: Task) => boolean;
+  onUpdateAnnouncement?: (id: string, updates: Partial<Task>) => Promise<Task>;
 }
 
-export function AnnouncementsList({ announcements, loading, isUnread }: AnnouncementsListProps) {
+export function AnnouncementsList({ 
+  announcements, 
+  loading, 
+  isUnread,
+  onUpdateAnnouncement,
+}: AnnouncementsListProps) {
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Task | null>(null);
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -42,21 +52,40 @@ export function AnnouncementsList({ announcements, loading, isUnread }: Announce
   }
 
   return (
-    <div className="space-y-3">
-      {announcements.map((announcement) => (
-        <AnnouncementCard 
-          key={announcement.id} 
-          announcement={announcement} 
-          isNew={isUnread?.(announcement)}
-        />
-      ))}
-    </div>
+    <>
+      <div className="space-y-3">
+        {announcements.map((announcement) => (
+          <AnnouncementCard 
+            key={announcement.id} 
+            announcement={announcement} 
+            isNew={isUnread?.(announcement)}
+            onClick={() => setSelectedAnnouncement(announcement)}
+          />
+        ))}
+      </div>
+
+      <AnnouncementDetailModal
+        announcement={selectedAnnouncement}
+        open={!!selectedAnnouncement}
+        onClose={() => setSelectedAnnouncement(null)}
+        onSave={onUpdateAnnouncement}
+      />
+    </>
   );
 }
 
-function AnnouncementCard({ announcement, isNew }: { announcement: Task; isNew?: boolean }) {
+interface AnnouncementCardProps {
+  announcement: Task;
+  isNew?: boolean;
+  onClick: () => void;
+}
+
+function AnnouncementCard({ announcement, isNew, onClick }: AnnouncementCardProps) {
   return (
-    <Card className={`transition-all hover:shadow-md ${isNew ? 'ring-2 ring-primary/50 bg-primary/5' : ''}`}>
+    <Card 
+      className={`transition-all hover:shadow-md cursor-pointer ${isNew ? 'ring-2 ring-primary/50 bg-primary/5' : ''}`}
+      onClick={onClick}
+    >
       <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6">
         <div className="flex items-start gap-2 sm:gap-3">
           <div className={`p-1.5 sm:p-2 rounded-lg shrink-0 ${isNew ? 'bg-primary/20' : 'bg-primary/10'}`}>
@@ -89,15 +118,9 @@ function AnnouncementCard({ announcement, isNew }: { announcement: Task; isNew?:
         </div>
       </CardHeader>
       <CardContent className="px-3 sm:px-6 pb-3">
-        <div className="text-sm text-foreground whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+        <div className="text-sm text-foreground whitespace-pre-wrap break-words line-clamp-3" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
           <LinkifiedText text={announcement.summary} />
         </div>
-        
-        {announcement.description && (
-          <div className="mt-3 pt-3 border-t text-sm text-muted-foreground whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-            <LinkifiedText text={announcement.description} />
-          </div>
-        )}
         
         {announcement.url && (
           <a 
@@ -105,6 +128,7 @@ function AnnouncementCard({ announcement, isNew }: { announcement: Task; isNew?:
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 mt-3 sm:mt-4 px-3 sm:px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors text-sm"
+            onClick={(e) => e.stopPropagation()}
           >
             <FileText className="h-4 w-4 shrink-0" />
             <span>Открыть документ</span>

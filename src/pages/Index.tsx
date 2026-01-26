@@ -501,6 +501,7 @@ const Index = () => {
               announcements={announcements} 
               loading={loading}
               isUnread={isUnread}
+              onUpdateAnnouncement={updateTask}
             />
           </TabsContent>
 
