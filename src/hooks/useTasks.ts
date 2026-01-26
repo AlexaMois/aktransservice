@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Task, TaskStatus, Announcement, DigitizationQueueItem, NotAutomatingItem, ExperimentItem, TaskComment } from '@/types/task';
+import { normalizeTaskFields } from '@/lib/textNormalize';
 
 // Re-export GSheets hooks for use in components
 export { useGSheetsTasks, useGSheetsAnnouncements, useGSheetsComments } from './useGSheetsTasks';
@@ -34,10 +35,13 @@ export function useTasks() {
   }, [fetchTasks]);
 
   const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'status'>) => {
+    // Normalize text fields before saving
+    const normalizedTask = normalizeTaskFields(task);
+    
     const { data, error } = await supabase
       .from('tasks')
       .insert({
-        ...task,
+        ...normalizedTask,
         status: 'ideas',
       } as any)
       .select()
@@ -62,9 +66,12 @@ export function useTasks() {
   };
 
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
+    // Normalize text fields before saving
+    const normalizedUpdates = normalizeTaskFields(updates);
+    
     const { data, error } = await supabase
       .from('tasks')
-      .update(updates as any)
+      .update(normalizedUpdates as any)
       .eq('id', taskId)
       .select()
       .single();
@@ -220,12 +227,15 @@ export function useTaskComments(taskId: string) {
   }, [fetchComments]);
 
   const addComment = async (author: string, text: string) => {
+    const normalizedText = text?.trim() || '';
+    const normalizedAuthor = author?.trim() || 'Аноним';
+    
     const { data, error } = await supabase
       .from('task_comments')
       .insert({
         task_id: taskId,
-        author,
-        text,
+        author: normalizedAuthor,
+        text: normalizedText,
       })
       .select()
       .single();
