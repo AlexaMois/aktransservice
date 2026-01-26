@@ -27,27 +27,36 @@ const statusHeaderColors: Record<TaskStatus, string> = {
   'completed': 'text-green-600',
 };
 
+// Short status labels for compact view
+const STATUS_SHORT_LABELS: Record<TaskStatus, string> = {
+  'ideas': 'Идеи',
+  'planned': 'План',
+  'in-progress': 'В работе',
+  'review': 'Проверка',
+  'completed': 'Готово',
+};
+
 export function KanbanColumn({ status, tasks, onTaskClick, onAddClick }: KanbanColumnProps) {
   const showAddButton = (status === 'ideas' || status === 'planned') && tasks.length === 0;
   const addButtonConfig = status === 'ideas' 
-    ? { label: 'Добавить идею', icon: Lightbulb, type: 'idea' as const }
-    : { label: 'Добавить задачу', icon: ListTodo, type: 'task' as const };
+    ? { label: 'Добавить', icon: Lightbulb, type: 'idea' as const }
+    : { label: 'Добавить', icon: ListTodo, type: 'task' as const };
 
   return (
-    <div className="flex flex-col bg-accent/30 rounded-xl min-w-[280px] sm:min-w-[320px] w-[320px] shrink-0">
-      <div className={`px-3 sm:px-4 py-2.5 sm:py-3 border-b-2 ${statusColors[status]} rounded-t-xl`}>
-        <div className="flex items-center justify-between">
-          <h2 className={`font-semibold text-sm sm:text-base ${statusHeaderColors[status]}`}>
-            {STATUS_LABELS[status]}
+    <div className="flex flex-col bg-accent/30 rounded-lg flex-1 min-w-0">
+      <div className={`px-2 py-2 border-b-2 ${statusColors[status]} rounded-t-lg`}>
+        <div className="flex items-center justify-between gap-1">
+          <h2 className={`font-semibold text-xs ${statusHeaderColors[status]} truncate`}>
+            {STATUS_SHORT_LABELS[status]}
           </h2>
-          <span className="text-xs font-medium bg-background/80 text-foreground px-2 py-0.5 rounded-full">
+          <span className="text-[10px] font-medium bg-background/80 text-foreground px-1.5 py-0.5 rounded-full shrink-0">
             {tasks.length}
           </span>
         </div>
       </div>
       
-      <ScrollArea className="flex-1 p-2 sm:p-3">
-        <div className="flex flex-col gap-2 sm:gap-3">
+      <ScrollArea className="flex-1 p-1.5">
+        <div className="flex flex-col gap-1.5">
           {tasks.map((task) => (
             <TaskCard 
               key={task.id} 
@@ -57,18 +66,19 @@ export function KanbanColumn({ status, tasks, onTaskClick, onAddClick }: KanbanC
           ))}
           
           {tasks.length === 0 && (
-            <div className="text-center py-6 sm:py-8">
+            <div className="text-center py-4">
               {showAddButton && onAddClick ? (
                 <Button
                   variant="outline"
-                  className="gap-2"
+                  size="sm"
+                  className="gap-1 text-xs h-7 px-2"
                   onClick={() => onAddClick(addButtonConfig.type)}
                 >
-                  <addButtonConfig.icon className="h-4 w-4" />
+                  <addButtonConfig.icon className="h-3 w-3" />
                   {addButtonConfig.label}
                 </Button>
               ) : (
-                <p className="text-muted-foreground text-sm">Нет задач</p>
+                <p className="text-muted-foreground text-[10px]">Нет задач</p>
               )}
             </div>
           )}
