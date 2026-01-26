@@ -32,7 +32,7 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
             {TASK_TYPE_LABELS[task.task_type]}
           </Badge>
         </div>
-        <h3 className="font-semibold text-sm leading-tight text-card-foreground break-words">
+        <h3 className="font-semibold text-sm leading-tight text-card-foreground" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
           {task.title}
         </h3>
       </CardHeader>
