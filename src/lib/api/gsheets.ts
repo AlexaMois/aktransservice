@@ -1,5 +1,5 @@
 import { Task, TaskComment, Announcement } from '@/types/task';
-import { getSession } from '@/lib/auth/session';
+import { clearSession, getSession } from '@/lib/auth/session';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -35,12 +35,28 @@ async function callGSheetsAPI(action: string, entity: string, data?: any, id?: s
     headers,
     body: JSON.stringify({ action, entity, data, id }),
   });
+
+  // Be defensive: edge/runtime can sometimes return non-JSON bodies on failures.
+  const raw = await response.text();
+  let result: any;
+  try {
+    result = raw ? JSON.parse(raw) : null;
+  } catch {
+    // If server didn't return JSON, still surface a useful error
+    if (response.status === 401) {
+      clearSession();
+      if (typeof window !== 'undefined') window.location.reload();
+      throw new Error('Требуется авторизация');
+    }
+    throw new Error(`Ошибка сервера (${response.status}). Попробуйте обновить страницу.`);
+  }
   
-  const result = await response.json();
-  
-  if (!result.success) {
+  if (!result?.success) {
     // Handle specific error codes
     if (response.status === 401) {
+      // Session is no longer valid (e.g., after reset). Clear it and return user to login.
+      clearSession();
+      if (typeof window !== 'undefined') window.location.reload();
       throw new Error('Требуется авторизация');
     }
     if (response.status === 403) {
