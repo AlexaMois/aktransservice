@@ -32,10 +32,10 @@ export function UserNamePrompt({ open, onSubmit }: UserNamePromptProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5 text-primary" />
-            Добро пожаловать!
+            Привет!
           </DialogTitle>
           <DialogDescription>
-            Введите ваше имя, чтобы мы могли отслеживать прочитанные вами объявления.
+            Напиши, пожалуйста, своё имя. Так мы сможем показывать тебе актуальные объявления и удобнее работать дальше.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
