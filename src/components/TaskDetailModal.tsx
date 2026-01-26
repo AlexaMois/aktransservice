@@ -227,12 +227,10 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
                 {EFFECT_TYPE_LABELS[task.effect_type]}
               </Badge>
             )}
-            {task.digitization_section && (
-              <Badge variant="outline" className="text-xs gap-1">
-                <FolderOpen className="h-3 w-3" />
-                {DIGITIZATION_SECTION_LABELS[task.digitization_section]}
-              </Badge>
-            )}
+            <Badge variant="outline" className="text-xs gap-1">
+              <FolderOpen className="h-3 w-3" />
+              {DIGITIZATION_SECTION_LABELS[task.digitization_section || 'documents']}
+            </Badge>
           </div>
         </DialogHeader>
 
