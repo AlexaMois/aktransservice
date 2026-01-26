@@ -1,8 +1,9 @@
-export type TaskStatus = 'ideas' | 'planned' | 'in-progress' | 'completed';
+export type TaskStatus = 'ideas' | 'planned' | 'in-progress' | 'review' | 'completed';
 export type TaskPriority = 'high' | 'medium' | 'low';
-export type TaskType = 'idea' | 'problem' | 'task' | 'announcement';
+export type TaskType = 'idea' | 'problem' | 'task' | 'announcement' | 'question';
 export type EffectType = 'security' | 'compliance' | 'reduce_manual_work' | 'process_speed' | 'transparency' | 'audit_prep' | 'financial';
 export type ImportanceRating = 'critical' | 'important' | 'can_wait';
+export type DigitizationSection = 'documents' | 'onboarding' | 'training' | 'hr_accounting' | 'shifts' | 'reporting' | 'it_systems';
 
 export interface Task {
   id: string;
@@ -14,6 +15,7 @@ export interface Task {
   priority: TaskPriority;
   effect_type?: EffectType | null;
   importance?: ImportanceRating | null;
+  digitization_section?: DigitizationSection | null;
   author: string;
   owner?: string | null;
   url?: string | null;
@@ -80,6 +82,7 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
   'ideas': 'Идеи',
   'planned': 'Запланировано',
   'in-progress': 'В разработке',
+  'review': 'На проверке',
   'completed': 'Завершено'
 };
 
@@ -93,14 +96,16 @@ export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   'idea': 'Идея',
   'problem': 'Проблема',
   'task': 'Задача',
-  'announcement': 'Объявление'
+  'announcement': 'Объявление',
+  'question': 'Вопрос'
 };
 
 export const TASK_TYPE_COLORS: Record<TaskType, string> = {
   'idea': 'bg-primary/10 text-primary border-primary/20',
   'problem': 'bg-destructive/10 text-destructive border-destructive/20',
   'task': 'bg-chart-1/10 text-chart-5 border-chart-1/20',
-  'announcement': 'bg-secondary/10 text-secondary border-secondary/20'
+  'announcement': 'bg-secondary/10 text-secondary border-secondary/20',
+  'question': 'bg-chart-4/10 text-chart-4 border-chart-4/20'
 };
 
 export const EFFECT_TYPE_LABELS: Record<EffectType, string> = {
@@ -117,4 +122,14 @@ export const IMPORTANCE_LABELS: Record<ImportanceRating, string> = {
   'critical': 'Критично',
   'important': 'Важно',
   'can_wait': 'Можно подождать'
+};
+
+export const DIGITIZATION_SECTION_LABELS: Record<DigitizationSection, string> = {
+  'documents': 'Документы и требования',
+  'onboarding': 'Ознакомление сотрудников',
+  'training': 'Инструктажи и обучение',
+  'hr_accounting': 'Кадры и бухгалтерия',
+  'shifts': 'Вахта и участки',
+  'reporting': 'Отчётность и проверки',
+  'it_systems': 'Информационные системы (1С, порталы)'
 };

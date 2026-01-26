@@ -1,7 +1,7 @@
-import { Task, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from '@/types/task';
+import { Task, TASK_TYPE_LABELS, TASK_TYPE_COLORS, DIGITIZATION_SECTION_LABELS } from '@/types/task';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Calendar, AlertTriangle, Lightbulb, ListTodo, Megaphone } from 'lucide-react';
+import { User, Calendar, AlertTriangle, Lightbulb, ListTodo, Megaphone, HelpCircle, FolderOpen } from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
@@ -14,6 +14,7 @@ const TaskTypeIcon = ({ type }: { type: Task['task_type'] }) => {
     problem: AlertTriangle,
     task: ListTodo,
     announcement: Megaphone,
+    question: HelpCircle,
   };
   const Icon = icons[type];
   return <Icon className="h-3.5 w-3.5" />;
@@ -40,6 +41,13 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
         <p className="text-xs text-muted-foreground line-clamp-1">
           {task.summary}
         </p>
+        
+        {task.digitization_section && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <FolderOpen className="h-3 w-3" />
+            <span className="truncate">{DIGITIZATION_SECTION_LABELS[task.digitization_section]}</span>
+          </div>
+        )}
         
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5">

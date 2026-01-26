@@ -15,6 +15,7 @@ const statusColors: Record<TaskStatus, string> = {
   'ideas': 'bg-chart-3/20 border-chart-3',
   'planned': 'bg-chart-1/20 border-chart-1',
   'in-progress': 'bg-primary/20 border-primary',
+  'review': 'bg-chart-4/20 border-chart-4',
   'completed': 'bg-green-500/20 border-green-500',
 };
 
@@ -22,6 +23,7 @@ const statusHeaderColors: Record<TaskStatus, string> = {
   'ideas': 'text-chart-5',
   'planned': 'text-chart-5',
   'in-progress': 'text-primary',
+  'review': 'text-chart-4',
   'completed': 'text-green-600',
 };
 

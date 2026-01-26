@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Task, TaskStatus, TaskPriority, TaskType, EffectType, ImportanceRating, STATUS_LABELS } from '@/types/task';
+import { Task, TaskStatus, TaskPriority, TaskType, EffectType, ImportanceRating, DigitizationSection, STATUS_LABELS } from '@/types/task';
 import { useGSheetsTasks } from '@/hooks/useGSheetsTasks';
 import { isGSheetsMode } from '@/lib/api/gsheets';
 import { useSwipe } from '@/hooks/useSwipe';
@@ -19,7 +19,7 @@ import { Loader2, Map, Megaphone, Zap, FolderOpen, ChevronLeft, ChevronRight } f
 import { TaskCard } from '@/components/TaskCard';
 import { Button } from '@/components/ui/button';
 
-const STATUSES: TaskStatus[] = ['ideas', 'planned', 'in-progress', 'completed'];
+const STATUSES: TaskStatus[] = ['ideas', 'planned', 'in-progress', 'review', 'completed'];
 
 const Index = () => {
   const { tasks, loading, addTask, updateTask, refetch, syncStatus, lastSyncTime, manualSync } = useGSheetsTasks();
@@ -38,6 +38,7 @@ const Index = () => {
   const [effectTypeFilter, setEffectTypeFilter] = useState<EffectType | 'all'>('all');
   const [importanceFilter, setImportanceFilter] = useState<ImportanceRating | 'all'>('all');
   const [ownerFilter, setOwnerFilter] = useState('');
+  const [sectionFilter, setSectionFilter] = useState<DigitizationSection | 'all'>('all');
 
   // Swipe navigation for mobile
   const currentStatusIndex = STATUSES.indexOf(mobileStatusFilter);
@@ -114,9 +115,14 @@ const Index = () => {
         return false;
       }
 
+      // Section filter
+      if (sectionFilter !== 'all' && task.digitization_section !== sectionFilter) {
+        return false;
+      }
+
       return true;
     });
-  }, [tasks, searchQuery, statusFilter, priorityFilter, taskTypeFilter, effectTypeFilter, importanceFilter, ownerFilter]);
+  }, [tasks, searchQuery, statusFilter, priorityFilter, taskTypeFilter, effectTypeFilter, importanceFilter, ownerFilter, sectionFilter]);
 
   // Group tasks by status
   const tasksByStatus = useMemo(() => {
@@ -124,6 +130,7 @@ const Index = () => {
       'ideas': [],
       'planned': [],
       'in-progress': [],
+      'review': [],
       'completed': [],
     };
     
@@ -148,6 +155,7 @@ const Index = () => {
     priority: TaskPriority;
     effect_type?: EffectType;
     importance?: ImportanceRating;
+    digitization_section?: DigitizationSection;
     url?: string;
     input_data_description?: string;
     problem_description?: string;
@@ -163,6 +171,7 @@ const Index = () => {
       priority: data.priority,
       effect_type: data.effect_type || null,
       importance: data.importance || null,
+      digitization_section: data.digitization_section || null,
       url: data.url || null,
       input_data_description: data.input_data_description || null,
       problem_description: data.problem_description || null,
@@ -247,6 +256,8 @@ const Index = () => {
               onEffectTypeFilterChange={setEffectTypeFilter}
               importanceFilter={importanceFilter}
               onImportanceFilterChange={setImportanceFilter}
+              sectionFilter={sectionFilter}
+              onSectionFilterChange={setSectionFilter}
               ownerFilter={ownerFilter}
               onOwnerFilterChange={setOwnerFilter}
               owners={owners}

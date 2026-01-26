@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Task, TaskStatus, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS } from '@/types/task';
+import { Task, TaskStatus, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS, DIGITIZATION_SECTION_LABELS } from '@/types/task';
 import { useTaskComments } from '@/hooks/useTasks';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -20,7 +20,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, User, Calendar, ExternalLink, Clock, MessageSquare, Link2, AlertTriangle, Lightbulb, Send, CheckCircle, ListTodo, Megaphone, LinkIcon, ClipboardList, CalendarPlus, Save, Loader2 } from 'lucide-react';
+import { FileText, User, Calendar, ExternalLink, Clock, MessageSquare, Link2, AlertTriangle, Lightbulb, Send, CheckCircle, ListTodo, Megaphone, LinkIcon, ClipboardList, CalendarPlus, Save, Loader2, HelpCircle, FolderOpen } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TaskDetailModalProps {
@@ -36,6 +36,7 @@ const statusVariants: Record<string, string> = {
   'ideas': 'bg-chart-3/20 text-chart-5 border-chart-3/30',
   'planned': 'bg-chart-1/20 text-chart-5 border-chart-1/30',
   'in-progress': 'bg-primary/20 text-primary border-primary/30',
+  'review': 'bg-chart-4/20 text-chart-4 border-chart-4/30',
   'completed': 'bg-green-500/20 text-green-700 border-green-500/30',
 };
 
@@ -51,6 +52,7 @@ const TaskTypeIcon = ({ type }: { type: Task['task_type'] }) => {
     problem: AlertTriangle,
     task: ListTodo,
     announcement: Megaphone,
+    question: HelpCircle,
   };
   const Icon = icons[type];
   return <Icon className="h-5 w-5" />;
@@ -207,6 +209,7 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
                 <SelectItem value="ideas">{STATUS_LABELS['ideas']}</SelectItem>
                 <SelectItem value="planned">{STATUS_LABELS['planned']}</SelectItem>
                 <SelectItem value="in-progress">{STATUS_LABELS['in-progress']}</SelectItem>
+                <SelectItem value="review">{STATUS_LABELS['review']}</SelectItem>
                 <SelectItem value="completed">{STATUS_LABELS['completed']}</SelectItem>
               </SelectContent>
             </Select>
@@ -222,6 +225,12 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
             {task.effect_type && (
               <Badge variant="secondary" className="text-xs">
                 {EFFECT_TYPE_LABELS[task.effect_type]}
+              </Badge>
+            )}
+            {task.digitization_section && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <FolderOpen className="h-3 w-3" />
+                {DIGITIZATION_SECTION_LABELS[task.digitization_section]}
               </Badge>
             )}
           </div>

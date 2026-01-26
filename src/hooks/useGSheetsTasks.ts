@@ -81,8 +81,8 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL) {
           .from('tasks')
           .insert({
             ...task,
-            status: 'ideas' as TaskStatus,
-          })
+            status: 'ideas',
+          } as any)
           .select()
           .single();
 
@@ -111,7 +111,7 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL) {
       } else {
         const { data, error } = await supabase
           .from('tasks')
-          .update(updates)
+          .update(updates as any)
           .eq('id', taskId)
           .select()
           .single();

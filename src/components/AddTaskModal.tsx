@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TaskPriority, TaskType, EffectType, ImportanceRating, PRIORITY_LABELS, TASK_TYPE_LABELS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS } from '@/types/task';
+import { TaskPriority, TaskType, EffectType, ImportanceRating, DigitizationSection, PRIORITY_LABELS, TASK_TYPE_LABELS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS, DIGITIZATION_SECTION_LABELS } from '@/types/task';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Upload, Loader2, AlertCircle, Lightbulb, AlertTriangle, ListTodo, Megaphone, Link } from 'lucide-react';
+import { Upload, Loader2, AlertCircle, Lightbulb, AlertTriangle, ListTodo, Megaphone, Link, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { uploadFileToGDrive } from '@/lib/api/gdrive';
 
@@ -34,6 +34,7 @@ interface AddTaskModalProps {
     priority: TaskPriority;
     effect_type?: EffectType;
     importance?: ImportanceRating;
+    digitization_section?: DigitizationSection;
     url?: string;
     input_data_description?: string;
     problem_description?: string;
@@ -48,6 +49,7 @@ const taskTypeIcons: Record<TaskType, typeof Lightbulb> = {
   problem: AlertTriangle,
   task: ListTodo,
   announcement: Megaphone,
+  question: HelpCircle,
 };
 
 export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea' }: AddTaskModalProps) {
@@ -63,6 +65,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
     priority: 'medium' as TaskPriority,
     effect_type: '' as EffectType | '',
     importance: '' as ImportanceRating | '',
+    digitization_section: '' as DigitizationSection | '',
     url: '',
     input_data_description: '',
     problem_description: '',
@@ -76,6 +79,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
   }, [defaultTaskType, open]);
 
   const requiresFile = formData.task_type === 'task' || formData.task_type === 'problem';
+  const requiresSection = formData.task_type !== 'announcement';
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -95,6 +99,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
       priority: 'medium',
       effect_type: '',
       importance: '',
+      digitization_section: '',
       url: '',
       input_data_description: '',
       problem_description: '',
@@ -112,6 +117,10 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
     }
     if (!formData.summary.trim()) {
       toast.error('Введите суть записи');
+      return;
+    }
+    if (requiresSection && !formData.digitization_section) {
+      toast.error('Выберите раздел цифровизации');
       return;
     }
     if (requiresFile && !selectedFile) {
@@ -165,6 +174,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
         priority: formData.priority,
         effect_type: formData.effect_type || undefined,
         importance: formData.importance || undefined,
+        digitization_section: formData.digitization_section || undefined,
         url: formData.url || undefined,
         input_data_description: formData.input_data_description || undefined,
         problem_description: formData.task_type === 'problem' ? formData.problem_description : undefined,
@@ -238,6 +248,9 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
               placeholder="Краткое описание в 1–2 предложения"
               rows={2}
             />
+            <p className="text-xs text-muted-foreground">
+              Кратко опишите, в чём проблема или что нужно улучшить
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -353,6 +366,33 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
             </div>
           </div>
 
+          {/* Digitization section - required for all except announcements */}
+          {requiresSection && (
+            <div className="space-y-2">
+              <Label>
+                Раздел цифровизации <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={formData.digitization_section}
+                onValueChange={(value: DigitizationSection) => setFormData({ ...formData, digitization_section: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите раздел..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(DIGITIZATION_SECTION_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                К какой части работы компании относится этот вопрос
+              </p>
+            </div>
+          )}
+
           {/* File upload - required for tasks and problems */}
           <div className="space-y-2">
             <Label>
@@ -381,6 +421,9 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
                 )}
               </label>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Документ, файл или скриншот. Без входных данных задача не берётся в работу
+            </p>
           </div>
 
           {(selectedFile || requiresFile) && (
