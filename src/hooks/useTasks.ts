@@ -58,10 +58,33 @@ export function useTasks() {
     return tasks.filter((task) => task.status === status);
   };
 
+  const updateTask = async (taskId: string, updates: Partial<Task>) => {
+    const { data, error } = await supabase
+      .from('tasks')
+      .update(updates)
+      .eq('id', taskId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating task:', error);
+      throw error;
+    }
+
+    const updatedTask = {
+      ...data,
+      summary: data.summary || data.description || '',
+    } as Task;
+
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? updatedTask : t)));
+    return updatedTask;
+  };
+
   return {
     tasks,
     loading,
     addTask,
+    updateTask,
     getTasksByStatus,
     refetch: fetchTasks,
   };
