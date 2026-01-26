@@ -13,7 +13,7 @@ import { InProgressView } from '@/components/InProgressView';
 import { AdditionalSectionsPage } from '@/components/AdditionalSectionsPage';
 import { MigrationSetup } from '@/components/MigrationSetup';
 import { SyncStatusIndicator } from '@/components/SyncStatusIndicator';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Map, Megaphone, Zap, FolderOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TaskCard } from '@/components/TaskCard';
@@ -360,20 +360,17 @@ const Index = () => {
 
                 {/* Desktop view - kanban */}
                 <div className="hidden md:block flex-1 min-h-0">
-                  <ScrollArea className="h-[calc(100vh-300px)]">
-                    <div className="flex gap-4 pb-4">
-                      {STATUSES.map((status) => (
-                        <KanbanColumn
-                          key={status}
-                          status={status}
-                          tasks={tasksByStatus[status]}
-                          onTaskClick={setSelectedTask}
-                          onAddClick={(type) => handleOpenAddModal(type)}
-                        />
-                      ))}
-                    </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                  <div className="h-[calc(100vh-280px)] flex gap-2">
+                    {STATUSES.map((status) => (
+                      <KanbanColumn
+                        key={status}
+                        status={status}
+                        tasks={tasksByStatus[status]}
+                        onTaskClick={setSelectedTask}
+                        onAddClick={(type) => handleOpenAddModal(type)}
+                      />
+                    ))}
+                  </div>
                 </div>
               </>
             )}
