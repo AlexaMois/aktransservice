@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Task, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS } from '@/types/task';
 import { useTaskComments } from '@/hooks/useTasks';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -12,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, User, Calendar, ExternalLink, Clock, MessageSquare, Link2, AlertTriangle, Lightbulb, Send, CheckCircle, ListTodo, Megaphone, LinkIcon, ClipboardList } from 'lucide-react';
+import { FileText, User, Calendar, ExternalLink, Clock, MessageSquare, Link2, AlertTriangle, Lightbulb, Send, CheckCircle, ListTodo, Megaphone, LinkIcon, ClipboardList, CalendarPlus, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TaskDetailModalProps {
@@ -20,6 +21,7 @@ interface TaskDetailModalProps {
   open: boolean;
   onClose: () => void;
   allTasks?: Task[];
+  onTaskUpdate?: (updatedTask: Task) => void;
 }
 
 const statusVariants: Record<string, string> = {
@@ -46,11 +48,20 @@ const TaskTypeIcon = ({ type }: { type: Task['task_type'] }) => {
   return <Icon className="h-5 w-5" />;
 };
 
-export function TaskDetailModal({ task, open, onClose, allTasks = [] }: TaskDetailModalProps) {
+export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpdate }: TaskDetailModalProps) {
   const { comments, loading: commentsLoading, addComment } = useTaskComments(task?.id || '');
   const [commentAuthor, setCommentAuthor] = useState('');
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [executionLog, setExecutionLog] = useState(task?.execution_log || '');
+  const [savingLog, setSavingLog] = useState(false);
+  const [isEditingLog, setIsEditingLog] = useState(false);
+  const logTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Sync local state when task changes
+  if (task && executionLog !== task.execution_log && !isEditingLog) {
+    setExecutionLog(task.execution_log || '');
+  }
 
   if (!task) return null;
 
@@ -72,6 +83,65 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [] }: TaskDeta
       toast.error('Ошибка при добавлении комментария');
     } finally {
       setSubmittingComment(false);
+    }
+  };
+
+  const formatDate = () => {
+    const now = new Date();
+    return now.toLocaleDateString('ru-RU', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    });
+  };
+
+  const handleInsertDate = () => {
+    const dateStr = formatDate() + ' — ';
+    const textarea = logTextareaRef.current;
+    
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newValue = executionLog.substring(0, start) + dateStr + executionLog.substring(end);
+      setExecutionLog(newValue);
+      setIsEditingLog(true);
+      
+      // Set cursor position after the inserted date
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + dateStr.length, start + dateStr.length);
+      }, 0);
+    } else {
+      // If no textarea yet, prepend to the log
+      const newValue = executionLog ? dateStr + '\n' + executionLog : dateStr;
+      setExecutionLog(newValue);
+      setIsEditingLog(true);
+    }
+  };
+
+  const handleSaveLog = async () => {
+    setSavingLog(true);
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .update({ execution_log: executionLog })
+        .eq('id', task.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setIsEditingLog(false);
+      toast.success('Лог сохранён');
+      
+      if (onTaskUpdate && data) {
+        onTaskUpdate(data as Task);
+      }
+    } catch (error) {
+      console.error('Error saving log:', error);
+      toast.error('Ошибка при сохранении лога');
+    } finally {
+      setSavingLog(false);
     }
   };
 
@@ -243,20 +313,51 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [] }: TaskDeta
           )}
 
           {/* Execution Log */}
-          {task.execution_log && (
-            <>
-              <Separator />
-              <div className="bg-muted/30 border border-border rounded-lg p-3 sm:p-4">
-                <h4 className="text-xs sm:text-sm font-medium text-foreground mb-2 sm:mb-3 flex items-center gap-2">
-                  <ClipboardList className="h-4 w-4" />
-                  Ход выполнения / Лог
-                </h4>
-                <p className="text-xs sm:text-sm text-foreground whitespace-pre-wrap font-mono leading-relaxed">
-                  {task.execution_log}
-                </p>
+          <Separator />
+          <div className="bg-muted/30 border border-border rounded-lg p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <h4 className="text-xs sm:text-sm font-medium text-foreground flex items-center gap-2">
+                <ClipboardList className="h-4 w-4" />
+                Ход выполнения / Лог
+              </h4>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleInsertDate}
+                  className="h-7 text-xs gap-1.5"
+                >
+                  <CalendarPlus className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Вставить дату</span>
+                </Button>
+                {isEditingLog && (
+                  <Button
+                    size="sm"
+                    onClick={handleSaveLog}
+                    disabled={savingLog}
+                    className="h-7 text-xs gap-1.5"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Сохранить</span>
+                  </Button>
+                )}
               </div>
-            </>
-          )}
+            </div>
+            <Textarea
+              ref={logTextareaRef}
+              value={executionLog}
+              onChange={(e) => {
+                setExecutionLog(e.target.value);
+                setIsEditingLog(true);
+              }}
+              placeholder="Формат: ДД.ММ.ГГГГ — действие — результат"
+              className="min-h-[120px] font-mono text-xs sm:text-sm leading-relaxed resize-y"
+              rows={6}
+            />
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
+              Рекомендуемый формат: Дата — действие — результат
+            </p>
+          </div>
 
           {/* Result block for completed tasks */}
           {task.status === 'completed' && (task.result_before || task.result_action || task.result_after) && (
