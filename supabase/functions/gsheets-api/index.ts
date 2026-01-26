@@ -732,9 +732,13 @@ Deno.serve(async (req) => {
         const sheetName = SHEETS.tasks;
         const user = (req as any).user as AppUser;
         
+        // Ensure Tasks sheet exists with proper headers
+        await ensureSheetExists(accessToken, sheetName, TASK_COLUMNS, spreadsheetId);
+        
         if (action === 'list') {
           const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
-          if (rows.length === 0) {
+          if (rows.length <= 1) {
+            // Only header row or empty
             result = [];
           } else {
             const headers = rows[0];
