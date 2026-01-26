@@ -172,6 +172,7 @@ export type Database = {
           created_at: string
           description: string | null
           effect_type: Database["public"]["Enums"]["effect_type"] | null
+          execution_log: string | null
           file_name: string | null
           file_url: string | null
           id: string
@@ -197,6 +198,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           effect_type?: Database["public"]["Enums"]["effect_type"] | null
+          execution_log?: string | null
           file_name?: string | null
           file_url?: string | null
           id?: string
@@ -222,6 +224,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           effect_type?: Database["public"]["Enums"]["effect_type"] | null
+          execution_log?: string | null
           file_name?: string | null
           file_url?: string | null
           id?: string

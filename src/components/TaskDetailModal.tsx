@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, User, Calendar, ExternalLink, Clock, MessageSquare, Link2, AlertTriangle, Lightbulb, Send, CheckCircle, ListTodo, Megaphone, LinkIcon } from 'lucide-react';
+import { FileText, User, Calendar, ExternalLink, Clock, MessageSquare, Link2, AlertTriangle, Lightbulb, Send, CheckCircle, ListTodo, Megaphone, LinkIcon, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TaskDetailModalProps {
@@ -238,6 +238,22 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [] }: TaskDeta
                     <ExternalLink className="h-4 w-4 shrink-0" />
                   </a>
                 )}
+              </div>
+            </>
+          )}
+
+          {/* Execution Log */}
+          {task.execution_log && (
+            <>
+              <Separator />
+              <div className="bg-muted/30 border border-border rounded-lg p-3 sm:p-4">
+                <h4 className="text-xs sm:text-sm font-medium text-foreground mb-2 sm:mb-3 flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4" />
+                  Ход выполнения / Лог
+                </h4>
+                <p className="text-xs sm:text-sm text-foreground whitespace-pre-wrap font-mono leading-relaxed">
+                  {task.execution_log}
+                </p>
               </div>
             </>
           )}
