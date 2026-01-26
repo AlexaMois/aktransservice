@@ -18,8 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Upload, Loader2, AlertCircle } from 'lucide-react';
+import { Upload, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { uploadFileToGDrive } from '@/lib/api/gdrive';
 
 interface AddTaskModalProps {
   open: boolean;
@@ -38,6 +39,7 @@ interface AddTaskModalProps {
 
 export function AddTaskModal({ open, onClose, onSubmit }: AddTaskModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     title: '',
@@ -52,6 +54,7 @@ export function AddTaskModal({ open, onClose, onSubmit }: AddTaskModalProps) {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      setUploadProgress('idle');
     }
   };
 
@@ -76,30 +79,48 @@ export function AddTaskModal({ open, onClose, onSubmit }: AddTaskModalProps) {
     }
 
     setIsSubmitting(true);
+    setUploadProgress('uploading');
 
-    // Simulate file upload (will be replaced with Google Drive integration)
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      // Upload file to Google Drive
+      const uploadResult = await uploadFileToGDrive(selectedFile, formData.title);
+      
+      if (!uploadResult.success) {
+        setUploadProgress('error');
+        toast.error(uploadResult.error || 'Ошибка загрузки файла');
+        setIsSubmitting(false);
+        return;
+      }
 
-    onSubmit({
-      ...formData,
-      fileName: selectedFile.name,
-      fileUrl: '#', // Will be replaced with actual Google Drive URL
-    });
+      setUploadProgress('success');
 
-    // Reset form
-    setFormData({
-      title: '',
-      description: '',
-      author: '',
-      priority: 'medium',
-      inputDataDescription: '',
-      comment: '',
-    });
-    setSelectedFile(null);
-    setIsSubmitting(false);
-    onClose();
-    
-    toast.success('Идея успешно добавлена!');
+      onSubmit({
+        ...formData,
+        fileName: selectedFile.name,
+        fileUrl: uploadResult.fileUrl,
+      });
+
+      // Reset form
+      setFormData({
+        title: '',
+        description: '',
+        author: '',
+        priority: 'medium',
+        inputDataDescription: '',
+        comment: '',
+      });
+      setSelectedFile(null);
+      setUploadProgress('idle');
+      onClose();
+      
+      toast.success('Идея успешно добавлена! Файл загружен в Google Drive.');
+    } catch (error) {
+      console.error('Submit error:', error);
+      setUploadProgress('error');
+      toast.error('Произошла ошибка при создании задачи');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
