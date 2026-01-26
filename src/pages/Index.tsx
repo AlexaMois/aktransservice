@@ -12,16 +12,17 @@ import { AnnouncementsPage } from '@/components/AnnouncementsPage';
 import { InProgressView } from '@/components/InProgressView';
 import { AdditionalSectionsPage } from '@/components/AdditionalSectionsPage';
 import { MigrationSetup } from '@/components/MigrationSetup';
+import { SyncStatusIndicator } from '@/components/SyncStatusIndicator';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Map, Megaphone, Zap, FolderOpen, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { Loader2, Map, Megaphone, Zap, FolderOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TaskCard } from '@/components/TaskCard';
 import { Button } from '@/components/ui/button';
 
 const STATUSES: TaskStatus[] = ['ideas', 'planned', 'in-progress', 'completed'];
 
 const Index = () => {
-  const { tasks, loading, addTask, updateTask, refetch } = useGSheetsTasks();
+  const { tasks, loading, addTask, updateTask, refetch, syncStatus, lastSyncTime, manualSync } = useGSheetsTasks();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [defaultTaskType, setDefaultTaskType] = useState<TaskType>('idea');
@@ -201,25 +202,36 @@ const Index = () => {
       
       <main className="flex-1 container mx-auto px-3 sm:px-4 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          {/* Mobile tabs - stacked */}
-          <TabsList className="grid w-full grid-cols-2 gap-1 h-auto p-1 sm:grid-cols-4 sm:h-10">
-            <TabsTrigger value="roadmap" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
-              <Map className="h-4 w-4" />
-              <span>Дорожная карта</span>
-            </TabsTrigger>
-            <TabsTrigger value="in-progress" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
-              <Zap className="h-4 w-4" />
-              <span>В работе</span>
-            </TabsTrigger>
-            <TabsTrigger value="announcements" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
-              <Megaphone className="h-4 w-4" />
-              <span>Объявления</span>
-            </TabsTrigger>
-            <TabsTrigger value="sections" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
-              <FolderOpen className="h-4 w-4" />
-              <span>Разделы</span>
-            </TabsTrigger>
-          </TabsList>
+          {/* Tab header with sync status */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+            {/* Mobile tabs - stacked */}
+            <TabsList className="grid w-full grid-cols-2 gap-1 h-auto p-1 sm:grid-cols-4 sm:h-10 sm:w-auto">
+              <TabsTrigger value="roadmap" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
+                <Map className="h-4 w-4" />
+                <span>Дорожная карта</span>
+              </TabsTrigger>
+              <TabsTrigger value="in-progress" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
+                <Zap className="h-4 w-4" />
+                <span>В работе</span>
+              </TabsTrigger>
+              <TabsTrigger value="announcements" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
+                <Megaphone className="h-4 w-4" />
+                <span>Объявления</span>
+              </TabsTrigger>
+              <TabsTrigger value="sections" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
+                <FolderOpen className="h-4 w-4" />
+                <span>Разделы</span>
+              </TabsTrigger>
+            </TabsList>
+            
+            {/* Sync status indicator */}
+            <SyncStatusIndicator
+              status={syncStatus}
+              lastSyncTime={lastSyncTime}
+              onManualSync={manualSync}
+              pollingInterval={30000}
+            />
+          </div>
 
           <TabsContent value="roadmap" className="space-y-4 mt-4">
             <SearchAndFilters
