@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Task, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS } from '@/types/task';
+import { Task, TaskStatus, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS } from '@/types/task';
 import { useTaskComments } from '@/hooks/useTasks';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -8,12 +8,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, User, Calendar, ExternalLink, Clock, MessageSquare, Link2, AlertTriangle, Lightbulb, Send, CheckCircle, ListTodo, Megaphone, LinkIcon, ClipboardList, CalendarPlus, Save } from 'lucide-react';
+import { FileText, User, Calendar, ExternalLink, Clock, MessageSquare, Link2, AlertTriangle, Lightbulb, Send, CheckCircle, ListTodo, Megaphone, LinkIcon, ClipboardList, CalendarPlus, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TaskDetailModalProps {
@@ -22,6 +29,7 @@ interface TaskDetailModalProps {
   onClose: () => void;
   allTasks?: Task[];
   onTaskUpdate?: (updatedTask: Task) => void;
+  onUpdateTask?: (taskId: string, updates: Partial<Task>) => Promise<Task>;
 }
 
 const statusVariants: Record<string, string> = {
@@ -48,7 +56,7 @@ const TaskTypeIcon = ({ type }: { type: Task['task_type'] }) => {
   return <Icon className="h-5 w-5" />;
 };
 
-export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpdate }: TaskDetailModalProps) {
+export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpdate, onUpdateTask }: TaskDetailModalProps) {
   const { comments, loading: commentsLoading, addComment } = useTaskComments(task?.id || '');
   const [commentAuthor, setCommentAuthor] = useState('');
   const [commentText, setCommentText] = useState('');
@@ -56,6 +64,7 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
   const [executionLog, setExecutionLog] = useState('');
   const [savingLog, setSavingLog] = useState(false);
   const [isEditingLog, setIsEditingLog] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const logTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Sync local state when task changes
@@ -69,6 +78,24 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
 
   const linkedIdea = task.linked_idea_id ? allTasks.find(t => t.id === task.linked_idea_id) : null;
   const linkedProblem = task.linked_problem_id ? allTasks.find(t => t.id === task.linked_problem_id) : null;
+
+  const handleStatusChange = async (newStatus: TaskStatus) => {
+    if (!onUpdateTask || newStatus === task.status) return;
+    
+    setUpdatingStatus(true);
+    try {
+      const updatedTask = await onUpdateTask(task.id, { status: newStatus });
+      toast.success(`Статус изменён на "${STATUS_LABELS[newStatus]}"`);
+      if (onTaskUpdate) {
+        onTaskUpdate(updatedTask);
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Ошибка при изменении статуса');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   const handleAddComment = async () => {
     if (!commentText.trim()) {
@@ -159,10 +186,31 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
               {task.title}
             </DialogTitle>
           </div>
-          <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-3">
-            <Badge variant="outline" className={`text-xs ${statusVariants[task.status]}`}>
-              {STATUS_LABELS[task.status]}
-            </Badge>
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-3">
+            {/* Status selector */}
+            <Select
+              value={task.status}
+              onValueChange={(value) => handleStatusChange(value as TaskStatus)}
+              disabled={updatingStatus || !onUpdateTask}
+            >
+              <SelectTrigger className={`h-7 w-auto min-w-[130px] text-xs ${statusVariants[task.status]}`}>
+                {updatingStatus ? (
+                  <div className="flex items-center gap-1.5">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Обновление...</span>
+                  </div>
+                ) : (
+                  <SelectValue />
+                )}
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ideas">{STATUS_LABELS['ideas']}</SelectItem>
+                <SelectItem value="planned">{STATUS_LABELS['planned']}</SelectItem>
+                <SelectItem value="in-progress">{STATUS_LABELS['in-progress']}</SelectItem>
+                <SelectItem value="completed">{STATUS_LABELS['completed']}</SelectItem>
+              </SelectContent>
+            </Select>
+            
             <Badge variant="outline" className={`text-xs ${TASK_TYPE_COLORS[task.task_type]}`}>
               {TASK_TYPE_LABELS[task.task_type]}
             </Badge>

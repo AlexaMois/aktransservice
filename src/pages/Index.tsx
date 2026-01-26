@@ -392,6 +392,7 @@ const Index = () => {
         onClose={() => setSelectedTask(null)}
         allTasks={tasks}
         onTaskUpdate={handleTaskUpdate}
+        onUpdateTask={updateTask}
       />
 
       <AddTaskModal
