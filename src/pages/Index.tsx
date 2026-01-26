@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Task, TaskStatus, TaskPriority, TaskType, EffectType, ImportanceRating, STATUS_LABELS } from '@/types/task';
-import { useTasks } from '@/hooks/useTasks';
+import { useGSheetsTasks } from '@/hooks/useGSheetsTasks';
+import { isGSheetsMode } from '@/lib/api/gsheets';
 import { useSwipe } from '@/hooks/useSwipe';
 import { Header } from '@/components/Header';
 import { SearchAndFilters } from '@/components/SearchAndFilters';
@@ -10,21 +11,23 @@ import { AddTaskModal } from '@/components/AddTaskModal';
 import { AnnouncementsPage } from '@/components/AnnouncementsPage';
 import { InProgressView } from '@/components/InProgressView';
 import { AdditionalSectionsPage } from '@/components/AdditionalSectionsPage';
+import { MigrationSetup } from '@/components/MigrationSetup';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Map, Megaphone, Zap, FolderOpen, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Map, Megaphone, Zap, FolderOpen, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { TaskCard } from '@/components/TaskCard';
 import { Button } from '@/components/ui/button';
 
 const STATUSES: TaskStatus[] = ['ideas', 'planned', 'in-progress', 'completed'];
 
 const Index = () => {
-  const { tasks, loading, addTask, refetch } = useTasks();
+  const { tasks, loading, addTask, updateTask, refetch } = useGSheetsTasks();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [defaultTaskType, setDefaultTaskType] = useState<TaskType>('idea');
   const [activeTab, setActiveTab] = useState('roadmap');
   const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus>('ideas');
+  const [showMigration, setShowMigration] = useState(!isGSheetsMode());
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -172,6 +175,25 @@ const Index = () => {
       result_after: null,
     });
   };
+
+  const handleTaskUpdate = (updatedTask: Task) => {
+    refetch();
+  };
+
+  // Show migration setup if not configured
+  if (showMigration) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-1 container mx-auto px-3 sm:px-4 py-8">
+          <MigrationSetup onComplete={() => {
+            setShowMigration(false);
+            refetch();
+          }} />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -357,6 +379,7 @@ const Index = () => {
         open={!!selectedTask}
         onClose={() => setSelectedTask(null)}
         allTasks={tasks}
+        onTaskUpdate={handleTaskUpdate}
       />
 
       <AddTaskModal

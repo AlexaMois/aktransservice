@@ -5,8 +5,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Google Sheets configuration
-const SPREADSHEET_ID = Deno.env.get('GOOGLE_SHEETS_ID') || '';
+// Google Sheets configuration - use environment variable
+const getSpreadsheetId = () => {
+  return Deno.env.get('GOOGLE_SHEETS_ID') || '';
+};
+
 const SHEETS = {
   tasks: 'Tasks',
   announcements: 'Announcements',
@@ -103,8 +106,8 @@ function taskToRow(task: Record<string, any>, columns: string[]): string[] {
   });
 }
 
-async function getSheetData(accessToken: string, sheetName: string): Promise<string[][]> {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${sheetName}!A:Z`;
+async function getSheetData(accessToken: string, sheetName: string, spreadsheetId: string): Promise<string[][]> {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A:Z`;
   const response = await fetch(url, {
     headers: { 'Authorization': `Bearer ${accessToken}` },
   });
@@ -118,8 +121,8 @@ async function getSheetData(accessToken: string, sheetName: string): Promise<str
   return data.values || [];
 }
 
-async function appendRow(accessToken: string, sheetName: string, values: string[]): Promise<void> {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${sheetName}!A:Z:append?valueInputOption=RAW`;
+async function appendRow(accessToken: string, sheetName: string, values: string[], spreadsheetId: string): Promise<void> {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A:Z:append?valueInputOption=RAW`;
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -135,9 +138,9 @@ async function appendRow(accessToken: string, sheetName: string, values: string[
   }
 }
 
-async function updateRow(accessToken: string, sheetName: string, rowIndex: number, values: string[]): Promise<void> {
+async function updateRow(accessToken: string, sheetName: string, rowIndex: number, values: string[], spreadsheetId: string): Promise<void> {
   const range = `${sheetName}!A${rowIndex}:Z${rowIndex}`;
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}?valueInputOption=RAW`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=RAW`;
   const response = await fetch(url, {
     method: 'PUT',
     headers: {
@@ -153,9 +156,9 @@ async function updateRow(accessToken: string, sheetName: string, rowIndex: numbe
   }
 }
 
-async function deleteRow(accessToken: string, sheetName: string, rowIndex: number): Promise<void> {
+async function deleteRow(accessToken: string, sheetName: string, rowIndex: number, spreadsheetId: string): Promise<void> {
   // Get sheet ID first
-  const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}`;
+  const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
   const metaResponse = await fetch(metaUrl, {
     headers: { 'Authorization': `Bearer ${accessToken}` },
   });
@@ -166,7 +169,7 @@ async function deleteRow(accessToken: string, sheetName: string, rowIndex: numbe
   
   const sheetId = sheet.properties.sheetId;
   
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}:batchUpdate`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`;
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -204,7 +207,8 @@ Deno.serve(async (req) => {
       throw new Error('Google integration not configured');
     }
     
-    if (!SPREADSHEET_ID) {
+    const spreadsheetId = getSpreadsheetId();
+    if (!spreadsheetId) {
       throw new Error('GOOGLE_SHEETS_ID not configured');
     }
     
@@ -220,7 +224,7 @@ Deno.serve(async (req) => {
         const sheetName = SHEETS.tasks;
         
         if (action === 'list') {
-          const rows = await getSheetData(accessToken, sheetName);
+          const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
           if (rows.length === 0) {
             result = [];
           } else {
@@ -239,10 +243,10 @@ Deno.serve(async (req) => {
             task_type: data.task_type || 'idea',
           };
           const row = taskToRow(newTask, TASK_COLUMNS);
-          await appendRow(accessToken, sheetName, row);
+          await appendRow(accessToken, sheetName, row, spreadsheetId);
           result = newTask;
         } else if (action === 'update' && id) {
-          const rows = await getSheetData(accessToken, sheetName);
+          const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
           const headers = rows[0];
           const idIndex = headers.indexOf('id');
           const rowIndex = rows.findIndex((row, i) => i > 0 && row[idIndex] === id);
@@ -256,17 +260,17 @@ Deno.serve(async (req) => {
             updated_at: new Date().toISOString(),
           };
           const row = taskToRow(updatedTask, TASK_COLUMNS);
-          await updateRow(accessToken, sheetName, rowIndex + 1, row);
+          await updateRow(accessToken, sheetName, rowIndex + 1, row, spreadsheetId);
           result = updatedTask;
         } else if (action === 'delete' && id) {
-          const rows = await getSheetData(accessToken, sheetName);
+          const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
           const headers = rows[0];
           const idIndex = headers.indexOf('id');
           const rowIndex = rows.findIndex((row, i) => i > 0 && row[idIndex] === id);
           
           if (rowIndex === -1) throw new Error('Task not found');
           
-          await deleteRow(accessToken, sheetName, rowIndex + 1);
+          await deleteRow(accessToken, sheetName, rowIndex + 1, spreadsheetId);
           result = { deleted: true };
         }
         break;
@@ -276,7 +280,7 @@ Deno.serve(async (req) => {
         const sheetName = SHEETS.announcements;
         
         if (action === 'list') {
-          const rows = await getSheetData(accessToken, sheetName);
+          const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
           if (rows.length === 0) {
             result = [];
           } else {
@@ -305,10 +309,10 @@ Deno.serve(async (req) => {
             target_audience: data.target_audience || 'all',
           };
           const row = taskToRow(newItem, ANNOUNCEMENT_COLUMNS);
-          await appendRow(accessToken, sheetName, row);
+          await appendRow(accessToken, sheetName, row, spreadsheetId);
           result = newItem;
         } else if (action === 'update' && id) {
-          const rows = await getSheetData(accessToken, sheetName);
+          const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
           const headers = rows[0];
           const idIndex = headers.indexOf('id');
           const rowIndex = rows.findIndex((row, i) => i > 0 && row[idIndex] === id);
@@ -322,17 +326,17 @@ Deno.serve(async (req) => {
             updated_at: new Date().toISOString(),
           };
           const row = taskToRow(updatedItem, ANNOUNCEMENT_COLUMNS);
-          await updateRow(accessToken, sheetName, rowIndex + 1, row);
+          await updateRow(accessToken, sheetName, rowIndex + 1, row, spreadsheetId);
           result = updatedItem;
         } else if (action === 'delete' && id) {
-          const rows = await getSheetData(accessToken, sheetName);
+          const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
           const headers = rows[0];
           const idIndex = headers.indexOf('id');
           const rowIndex = rows.findIndex((row, i) => i > 0 && row[idIndex] === id);
           
           if (rowIndex === -1) throw new Error('Announcement not found');
           
-          await deleteRow(accessToken, sheetName, rowIndex + 1);
+          await deleteRow(accessToken, sheetName, rowIndex + 1, spreadsheetId);
           result = { deleted: true };
         }
         break;
@@ -343,7 +347,7 @@ Deno.serve(async (req) => {
         
         if (action === 'list') {
           const taskId = data?.task_id;
-          const rows = await getSheetData(accessToken, sheetName);
+          const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
           if (rows.length === 0) {
             result = [];
           } else {
@@ -362,7 +366,7 @@ Deno.serve(async (req) => {
             author: data.author || 'Аноним',
           };
           const row = taskToRow(newComment, COMMENT_COLUMNS);
-          await appendRow(accessToken, sheetName, row);
+          await appendRow(accessToken, sheetName, row, spreadsheetId);
           result = newComment;
         }
         break;

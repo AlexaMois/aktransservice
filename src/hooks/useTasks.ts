@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Task, TaskStatus, Announcement, DigitizationQueueItem, NotAutomatingItem, ExperimentItem, TaskComment } from '@/types/task';
 
+// Re-export GSheets hooks for use in components
+export { useGSheetsTasks, useGSheetsAnnouncements, useGSheetsComments } from './useGSheetsTasks';
+
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
