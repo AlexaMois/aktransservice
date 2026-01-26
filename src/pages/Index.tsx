@@ -3,9 +3,11 @@ import { Task, TaskStatus, TaskPriority, TaskType, EffectType, ImportanceRating,
 import { useGSheetsTasks } from '@/hooks/useGSheetsTasks';
 import { isGSheetsMode } from '@/lib/api/gsheets';
 import { useSwipe } from '@/hooks/useSwipe';
+import { DndContext, DragEndEvent, DragOverlay, pointerWithin, useSensor, useSensors, PointerSensor, TouchSensor } from '@dnd-kit/core';
 import { Header } from '@/components/Header';
 import { SearchAndFilters } from '@/components/SearchAndFilters';
 import { KanbanColumn } from '@/components/KanbanColumn';
+import { DroppableKanbanColumn } from '@/components/DroppableKanbanColumn';
 import { TaskDetailModal } from '@/components/TaskDetailModal';
 import { AddTaskModal } from '@/components/AddTaskModal';
 import { AnnouncementsPage } from '@/components/AnnouncementsPage';
@@ -18,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Map, Megaphone, Zap, FolderOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TaskCard } from '@/components/TaskCard';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 const STATUSES: TaskStatus[] = ['ideas', 'planned', 'in-progress', 'review', 'completed'];
 
@@ -28,7 +31,23 @@ const Index = () => {
   const [defaultTaskType, setDefaultTaskType] = useState<TaskType>('idea');
   const [activeTab, setActiveTab] = useState('roadmap');
   const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus>('ideas');
-  const [showMigration, setShowMigration] = useState(false); // Migration is now done via secrets
+  const [showMigration, setShowMigration] = useState(false);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  
+  // DnD sensors with activation constraints to allow clicks
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement before drag starts
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200, // 200ms hold before drag starts on touch
+        tolerance: 5,
+      },
+    })
+  );
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -189,6 +208,34 @@ const Index = () => {
   const handleTaskUpdate = (updatedTask: Task) => {
     refetch();
   };
+
+  // Handle drag end - update task status
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveDragId(null);
+    const { active, over } = event;
+    
+    if (!over) return;
+    
+    const taskId = active.id as string;
+    const newStatus = over.id as TaskStatus;
+    const task = tasks.find(t => t.id === taskId);
+    
+    if (!task || task.status === newStatus) return;
+    
+    try {
+      await updateTask(taskId, { status: newStatus });
+      toast.success(`Статус изменён на "${STATUS_LABELS[newStatus]}"`);
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      toast.error('Ошибка при изменении статуса');
+    }
+  };
+
+  const handleDragStart = (event: { active: { id: string | number } }) => {
+    setActiveDragId(event.active.id as string);
+  };
+
+  const activeDragTask = activeDragId ? tasks.find(t => t.id === activeDragId) : null;
 
   // Show migration setup if not configured
   if (showMigration) {
@@ -358,19 +405,31 @@ const Index = () => {
                   </div>
                 </div>
 
-                {/* Desktop view - kanban */}
+                {/* Desktop view - kanban with drag and drop */}
                 <div className="hidden md:block flex-1 min-h-0">
-                  <div className="h-[calc(100vh-280px)] flex gap-2">
-                    {STATUSES.map((status) => (
-                      <KanbanColumn
-                        key={status}
-                        status={status}
-                        tasks={tasksByStatus[status]}
-                        onTaskClick={setSelectedTask}
-                        onAddClick={(type) => handleOpenAddModal(type)}
-                      />
-                    ))}
-                  </div>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={pointerWithin}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div className="h-[calc(100vh-280px)] flex gap-2">
+                      {STATUSES.map((status) => (
+                        <DroppableKanbanColumn
+                          key={status}
+                          status={status}
+                          tasks={tasksByStatus[status]}
+                          onTaskClick={setSelectedTask}
+                          onAddClick={(type) => handleOpenAddModal(type)}
+                        />
+                      ))}
+                    </div>
+                    <DragOverlay>
+                      {activeDragTask ? (
+                        <TaskCard task={activeDragTask} onClick={() => {}} />
+                      ) : null}
+                    </DragOverlay>
+                  </DndContext>
                 </div>
               </>
             )}
