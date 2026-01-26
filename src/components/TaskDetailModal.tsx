@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Task, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS } from '@/types/task';
 import { useTaskComments } from '@/hooks/useTasks';
 import { supabase } from '@/integrations/supabase/client';
@@ -53,15 +53,17 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
   const [commentAuthor, setCommentAuthor] = useState('');
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
-  const [executionLog, setExecutionLog] = useState(task?.execution_log || '');
+  const [executionLog, setExecutionLog] = useState('');
   const [savingLog, setSavingLog] = useState(false);
   const [isEditingLog, setIsEditingLog] = useState(false);
   const logTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Sync local state when task changes
-  if (task && executionLog !== task.execution_log && !isEditingLog) {
-    setExecutionLog(task.execution_log || '');
-  }
+  useEffect(() => {
+    if (task && !isEditingLog) {
+      setExecutionLog(task.execution_log || '');
+    }
+  }, [task?.id, task?.execution_log, isEditingLog]);
 
   if (!task) return null;
 
