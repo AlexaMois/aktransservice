@@ -21,9 +21,12 @@ export function useSyncStatus(options: UseSyncStatusOptions = {}) {
     syncCallbackRef.current = callback;
   }, []);
   
+  const isSyncingRef = useRef(false);
+  
   const sync = useCallback(async () => {
-    if (!syncCallbackRef.current || status === 'syncing') return;
+    if (!syncCallbackRef.current || isSyncingRef.current) return;
     
+    isSyncingRef.current = true;
     setStatus('syncing');
     setError(null);
     
@@ -44,8 +47,10 @@ export function useSyncStatus(options: UseSyncStatusOptions = {}) {
       setTimeout(() => {
         setStatus('idle');
       }, 5000);
+    } finally {
+      isSyncingRef.current = false;
     }
-  }, [status]);
+  }, []);
   
   const startPolling = useCallback(() => {
     if (intervalRef.current) {
