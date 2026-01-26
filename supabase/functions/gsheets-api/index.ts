@@ -418,6 +418,8 @@ function requiresAuth(action: string, entity: string): boolean {
   if (entity === 'users' && action === 'reset') {
     return false;
   }
+  // Share action can use secret key OR admin session
+  // (we check admin role inside the action handler)
   // All other actions require auth
   return true;
 }
@@ -736,6 +738,55 @@ Deno.serve(async (req) => {
           }
           
           result = { message: 'Users reset and admin created successfully', user_id: adminUser.user_id };
+        } else if (action === 'share') {
+          // Share spreadsheet with an email
+          // Requires EITHER APP_SECRET_KEY OR authenticated admin session
+          const secretKey = req.headers.get('X-App-Secret-Key');
+          const expectedKey = Deno.env.get('APP_SECRET_KEY');
+          const user = (req as any).user as AppUser | undefined;
+          
+          const hasValidSecretKey = expectedKey && secretKey === expectedKey;
+          const isAdminUser = user?.role === 'admin';
+          
+          if (!hasValidSecretKey && !isAdminUser) {
+            return new Response(
+              JSON.stringify({ success: false, error: 'Admin access or secret key required' }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          const email = data?.email?.trim();
+          const role = data?.role || 'writer'; // writer or reader
+          
+          if (!email) {
+            return new Response(
+              JSON.stringify({ success: false, error: 'Email is required' }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          // Use Google Drive API to share the spreadsheet
+          const shareUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}/permissions`;
+          const shareResponse = await fetch(shareUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              type: 'user',
+              role: role,
+              emailAddress: email,
+            }),
+          });
+          
+          if (!shareResponse.ok) {
+            const error = await shareResponse.json();
+            console.error('Share error:', error);
+            throw new Error(`Failed to share: ${error.error?.message || 'Unknown error'}`);
+          }
+          
+          result = { message: `Spreadsheet shared with ${email} as ${role}` };
         }
         break;
       }
