@@ -23,6 +23,7 @@ const SHEETS = {
   tasks: 'Tasks',
   announcements: 'Announcements',
   comments: 'Comments',
+  readStatus: 'ReadStatus',
 };
 
 interface ServiceAccountKey {
@@ -96,6 +97,53 @@ const ANNOUNCEMENT_COLUMNS = [
 ];
 
 const COMMENT_COLUMNS = ['id', 'task_id', 'author', 'text', 'created_at'];
+
+const READ_STATUS_COLUMNS = ['id', 'announcement_id', 'user_id', 'read_at'];
+
+// Ensure sheet exists with headers
+async function ensureSheetExists(accessToken: string, sheetName: string, headers: string[], spreadsheetId: string): Promise<void> {
+  try {
+    // Try to get existing sheet
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!1:1`;
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      // Sheet exists, check if it has headers
+      if (!data.values || data.values.length === 0) {
+        // Add headers
+        await updateRow(accessToken, sheetName, 1, headers, spreadsheetId);
+      }
+      return;
+    }
+    
+    // Sheet doesn't exist, create it
+    const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`;
+    const createResponse = await fetch(metaUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        requests: [{
+          addSheet: {
+            properties: { title: sheetName }
+          }
+        }]
+      }),
+    });
+    
+    if (createResponse.ok) {
+      // Add headers to new sheet
+      await appendRow(accessToken, sheetName, headers, spreadsheetId);
+    }
+  } catch (e) {
+    console.log('Sheet check/create error (non-fatal):', e);
+  }
+}
 
 function rowToTask(row: string[], headers: string[]): Record<string, any> {
   const task: Record<string, any> = {};
@@ -389,6 +437,71 @@ Deno.serve(async (req) => {
           const row = taskToRow(newComment, COMMENT_COLUMNS);
           await appendRow(accessToken, sheetName, row, spreadsheetId);
           result = newComment;
+        }
+        break;
+      }
+      
+      case 'readStatus': {
+        const sheetName = SHEETS.readStatus;
+        
+        // Ensure sheet exists
+        await ensureSheetExists(accessToken, sheetName, READ_STATUS_COLUMNS, spreadsheetId);
+        
+        if (action === 'list') {
+          // Get read statuses for a specific user
+          const userId = data?.user_id;
+          const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
+          if (rows.length <= 1) {
+            result = [];
+          } else {
+            const headers = rows[0];
+            const userIdIndex = headers.indexOf('user_id');
+            result = rows.slice(1)
+              .map(row => rowToTask(row, headers))
+              .filter(status => !userId || status.user_id === userId);
+          }
+        } else if (action === 'create') {
+          // Mark announcements as read for a user
+          const now = new Date().toISOString();
+          const userId = data?.user_id;
+          const announcementIds = data?.announcement_ids || [];
+          
+          if (!userId || announcementIds.length === 0) {
+            result = [];
+            break;
+          }
+          
+          // Get existing read statuses
+          const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
+          const headers = rows.length > 0 ? rows[0] : READ_STATUS_COLUMNS;
+          const userIdIndex = headers.indexOf('user_id');
+          const announcementIdIndex = headers.indexOf('announcement_id');
+          
+          // Find which announcements are already marked as read
+          const existingReadIds = new Set<string>();
+          rows.slice(1).forEach(row => {
+            if (row[userIdIndex] === userId) {
+              existingReadIds.add(row[announcementIdIndex]);
+            }
+          });
+          
+          // Add new read statuses for announcements not yet marked
+          const newStatuses: any[] = [];
+          for (const announcementId of announcementIds) {
+            if (!existingReadIds.has(announcementId)) {
+              const newStatus = {
+                id: crypto.randomUUID(),
+                announcement_id: announcementId,
+                user_id: userId,
+                read_at: now,
+              };
+              const row = taskToRow(newStatus, READ_STATUS_COLUMNS);
+              await appendRow(accessToken, sheetName, row, spreadsheetId);
+              newStatuses.push(newStatus);
+            }
+          }
+          
+          result = newStatuses;
         }
         break;
       }

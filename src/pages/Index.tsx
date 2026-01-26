@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Task, TaskStatus, TaskPriority, TaskType, EffectType, ImportanceRating, DigitizationSection, STATUS_LABELS } from '@/types/task';
 import { useGSheetsTasks } from '@/hooks/useGSheetsTasks';
-import { useAnnouncementReadStatus } from '@/hooks/useAnnouncementReadStatus';
+import { useAnnouncementReadStatus, setUserId, hasUserId } from '@/hooks/useAnnouncementReadStatus';
 import { isGSheetsMode } from '@/lib/api/gsheets';
 import { useSwipe } from '@/hooks/useSwipe';
 import { DndContext, DragEndEvent, DragOverlay, pointerWithin, useSensor, useSensors, PointerSensor, TouchSensor } from '@dnd-kit/core';
@@ -16,6 +16,7 @@ import { InProgressView } from '@/components/InProgressView';
 import { AdditionalSectionsPage } from '@/components/AdditionalSectionsPage';
 import { MigrationSetup } from '@/components/MigrationSetup';
 import { SyncStatusIndicator } from '@/components/SyncStatusIndicator';
+import { UserNamePrompt } from '@/components/UserNamePrompt';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +36,7 @@ const Index = () => {
   const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus>('ideas');
   const [showMigration, setShowMigration] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [showUserNamePrompt, setShowUserNamePrompt] = useState(!hasUserId());
   
   // DnD sensors with activation constraints to allow clicks
   const sensors = useSensors(
@@ -111,18 +113,26 @@ const Index = () => {
   }, [tasks]);
 
   // Track read status for announcements
-  const { unreadCount, markAllAsRead, isUnread, hasUnread } = useAnnouncementReadStatus(announcements);
+  const { unreadCount, markAllAsRead, isUnread, hasUnread, needsUserName } = useAnnouncementReadStatus(announcements);
+
+  // Handle user name submission
+  const handleUserNameSubmit = useCallback((name: string) => {
+    setUserId(name);
+    setShowUserNamePrompt(false);
+    // Trigger a refetch to get read statuses for the new user
+    window.location.reload();
+  }, []);
 
   // Mark announcements as read when user opens the tab
   useEffect(() => {
-    if (activeTab === 'announcements' && hasUnread) {
+    if (activeTab === 'announcements' && hasUnread && !needsUserName) {
       // Delay marking as read so user can see the "new" badges
       const timer = setTimeout(() => {
         markAllAsRead();
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [activeTab, hasUnread, markAllAsRead]);
+  }, [activeTab, hasUnread, markAllAsRead, needsUserName]);
 
   // Apply filters (only to regular tasks, not announcements)
   const filteredTasks = useMemo(() => {
@@ -514,6 +524,11 @@ const Index = () => {
         onClose={() => setIsAddModalOpen(false)}
         onSubmit={handleAddTask}
         defaultTaskType={defaultTaskType}
+      />
+
+      <UserNamePrompt
+        open={showUserNamePrompt}
+        onSubmit={handleUserNameSubmit}
       />
     </div>
   );
