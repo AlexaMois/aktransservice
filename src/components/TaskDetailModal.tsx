@@ -20,6 +20,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { LinkifiedText } from '@/components/LinkifiedText';
 import { FileText, User, Calendar, ExternalLink, Clock, MessageSquare, Link2, AlertTriangle, Lightbulb, Send, CheckCircle, ListTodo, Megaphone, LinkIcon, ClipboardList, CalendarPlus, Save, Loader2, HelpCircle, FolderOpen } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -239,7 +240,7 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
           <div>
             <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">Суть</h4>
             <p className="text-sm sm:text-base text-foreground break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-              {task.summary}
+              <LinkifiedText text={task.summary} />
             </p>
           </div>
 
@@ -247,9 +248,9 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
           {task.description && (
             <div>
               <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">Детальное описание</h4>
-              <p className="text-sm text-foreground whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                {task.description}
-              </p>
+              <div className="text-sm text-foreground whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                <LinkifiedText text={task.description} />
+              </div>
             </div>
           )}
 
@@ -261,7 +262,7 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
                 Описание проблемы
               </h4>
               <p className="text-sm text-foreground break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                {task.problem_description}
+                <LinkifiedText text={task.problem_description} />
               </p>
             </div>
           )}
@@ -358,7 +359,7 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
               <div>
                 <h4 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5 sm:mb-2">Входные данные</h4>
                 <p className="text-sm text-foreground mb-3 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                  {task.input_data_description}
+                  <LinkifiedText text={task.input_data_description} />
                 </p>
                 
                 {task.file_url && task.file_name && (
@@ -503,7 +504,7 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
                     </span>
                   </div>
                   <p className="text-xs sm:text-sm text-foreground break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                    {comment.text}
+                    <LinkifiedText text={comment.text} />
                   </p>
                 </div>
               ))}
