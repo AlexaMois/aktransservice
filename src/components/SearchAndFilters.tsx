@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TaskStatus, TaskPriority, TaskType, EffectType, ImportanceRating, STATUS_LABELS, PRIORITY_LABELS, TASK_TYPE_LABELS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS } from '@/types/task';
+import { TaskStatus, TaskPriority, TaskType, EffectType, ImportanceRating, DigitizationSection, STATUS_LABELS, PRIORITY_LABELS, TASK_TYPE_LABELS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS, DIGITIZATION_SECTION_LABELS } from '@/types/task';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +32,8 @@ interface SearchAndFiltersProps {
   onEffectTypeFilterChange: (effect: EffectType | 'all') => void;
   importanceFilter: ImportanceRating | 'all';
   onImportanceFilterChange: (importance: ImportanceRating | 'all') => void;
+  sectionFilter: DigitizationSection | 'all';
+  onSectionFilterChange: (section: DigitizationSection | 'all') => void;
   ownerFilter: string;
   onOwnerFilterChange: (owner: string) => void;
   owners: string[];
@@ -51,6 +53,8 @@ export function SearchAndFilters({
   onEffectTypeFilterChange,
   importanceFilter,
   onImportanceFilterChange,
+  sectionFilter,
+  onSectionFilterChange,
   ownerFilter,
   onOwnerFilterChange,
   owners,
@@ -64,6 +68,7 @@ export function SearchAndFilters({
     taskTypeFilter !== 'all',
     effectTypeFilter !== 'all',
     importanceFilter !== 'all',
+    sectionFilter !== 'all',
     ownerFilter !== '',
   ].filter(Boolean).length;
 
@@ -76,6 +81,7 @@ export function SearchAndFilters({
     onTaskTypeFilterChange('all');
     onEffectTypeFilterChange('all');
     onImportanceFilterChange('all');
+    onSectionFilterChange('all');
     onOwnerFilterChange('');
   };
 
@@ -145,6 +151,24 @@ export function SearchAndFilters({
           <SelectContent>
             <SelectItem value="all">Любая важность</SelectItem>
             {Object.entries(IMPORTANCE_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Section filter */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-foreground">Раздел</label>
+        <Select value={sectionFilter} onValueChange={(v) => onSectionFilterChange(v as DigitizationSection | 'all')}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Все разделы" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все разделы</SelectItem>
+            {Object.entries(DIGITIZATION_SECTION_LABELS).map(([value, label]) => (
               <SelectItem key={value} value={value}>
                 {label}
               </SelectItem>
@@ -293,6 +317,21 @@ export function SearchAndFilters({
           <SelectContent>
             <SelectItem value="all">Вся важность</SelectItem>
             {Object.entries(IMPORTANCE_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Section filter */}
+        <Select value={sectionFilter} onValueChange={(v) => onSectionFilterChange(v as DigitizationSection | 'all')}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Раздел" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все разделы</SelectItem>
+            {Object.entries(DIGITIZATION_SECTION_LABELS).map(([value, label]) => (
               <SelectItem key={value} value={value}>
                 {label}
               </SelectItem>

@@ -38,8 +38,8 @@ export function useTasks() {
       .from('tasks')
       .insert({
         ...task,
-        status: 'ideas' as TaskStatus,
-      })
+        status: 'ideas',
+      } as any)
       .select()
       .single();
 
@@ -64,7 +64,7 @@ export function useTasks() {
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
     const { data, error } = await supabase
       .from('tasks')
-      .update(updates)
+      .update(updates as any)
       .eq('id', taskId)
       .select()
       .single();
