@@ -130,6 +130,8 @@ async function getAccessToken(serviceAccountKey: ServiceAccountKey): Promise<str
 }
 
 // Column mappings
+// NOTE: effect_type is DEPRECATED - kept for backwards compatibility with existing data, 
+// but no longer used in the UI or new task creation
 const TASK_COLUMNS = [
   'id', 'title', 'summary', 'description', 'task_type', 'status', 'priority',
   'effect_type', 'importance', 'author', 'owner', 'url', 'input_data_description',
@@ -844,8 +846,10 @@ Deno.serve(async (req) => {
           }
           
           // SECURITY: Author is set from session, not from client data
+          // Remove effect_type from data as it's deprecated
+          const { effect_type: _, ...cleanData } = data;
           const newTask = {
-            ...data,
+            ...cleanData,
             id: crypto.randomUUID(),
             created_at: now,
             updated_at: now,
@@ -853,6 +857,7 @@ Deno.serve(async (req) => {
             priority: data.priority || 'medium',
             task_type: data.task_type || 'idea',
             importance: importance,
+            effect_type: null, // DEPRECATED - always null for new tasks
             author: user.name, // Force author from session
           };
           const row = objectToRow(newTask, TASK_COLUMNS);
@@ -885,7 +890,8 @@ Deno.serve(async (req) => {
           }
           
           // SECURITY: Ignore author field from client
-          const { author: _, ...safeData } = data;
+          // Also ignore effect_type as it's deprecated
+          const { author: _author, effect_type: _effect, ...safeData } = data;
           
           // Validate and normalize importance if being updated
           if (safeData.importance !== undefined) {
