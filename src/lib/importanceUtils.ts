@@ -11,20 +11,20 @@ export function getImportanceStyles(importance: ImportanceRating | null | undefi
   switch (importance) {
     case 'critical':
       return {
-        borderClass: 'border-l-4 border-l-destructive',
-        badgeClass: 'bg-destructive/15 text-destructive border-destructive/30',
+        borderClass: 'border-l-4 border-l-red-500',
+        badgeClass: 'bg-red-500/15 text-red-600 border-red-500/30',
         label: '1',
       };
     case 'important':
       return {
-        borderClass: 'border-l-4 border-l-chart-4',
-        badgeClass: 'bg-chart-4/15 text-chart-4 border-chart-4/30',
+        borderClass: 'border-l-4 border-l-orange-500',
+        badgeClass: 'bg-orange-500/15 text-orange-600 border-orange-500/30',
         label: '2',
       };
     case 'can_wait':
       return {
-        borderClass: 'border-l-4 border-l-muted-foreground/30',
-        badgeClass: 'bg-muted text-muted-foreground border-muted-foreground/20',
+        borderClass: 'border-l-4 border-l-green-500',
+        badgeClass: 'bg-green-500/15 text-green-600 border-green-500/30',
         label: '3',
       };
     default:
