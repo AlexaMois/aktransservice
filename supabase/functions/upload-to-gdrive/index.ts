@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 // Parent folder ID from user
-const PARENT_FOLDER_ID = '16zEA_4Cg7lCc873DK1G5gOdAIF5KPvlC';
+const PARENT_FOLDER_ID = '194gw_AuUPcMI4ttdkO9dQaDzeiZNpyT4';
 
 interface ServiceAccountKey {
   client_email: string;
