@@ -127,7 +127,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
       return;
     }
     if (requiresSection && !formData.digitization_section) {
-      toast.error('Выберите раздел цифровизации');
+      toast.error('Выберите отдел');
       return;
     }
 
@@ -314,18 +314,18 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
             </Select>
           </div>
 
-          {/* Digitization section - required for all except announcements */}
+          {/* Department - required for all except announcements */}
           {requiresSection && (
             <div className="space-y-2">
               <Label>
-                Раздел цифровизации <span className="text-destructive">*</span>
+                Отдел <span className="text-destructive">*</span>
               </Label>
               <Select
                 value={formData.digitization_section}
                 onValueChange={(value: DigitizationSection) => setFormData({ ...formData, digitization_section: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Выберите раздел..." />
+                  <SelectValue placeholder="Выберите отдел..." />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(DIGITIZATION_SECTION_LABELS).map(([value, label]) => (

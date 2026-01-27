@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Task, TaskStatus, TaskPriority, TaskType, EffectType, ImportanceRating, DigitizationSection, STATUS_LABELS } from '@/types/task';
+import { Task, TaskStatus, TaskPriority, TaskType, ImportanceRating, DigitizationSection, STATUS_LABELS } from '@/types/task';
 import { useGSheetsTasks } from '@/hooks/useGSheetsTasks';
 import { useDragOptimistic } from '@/hooks/useDragOptimistic';
 import { useAnnouncementReadStatus, hasUserId } from '@/hooks/useAnnouncementReadStatus';
@@ -14,14 +14,14 @@ import { TaskDetailModal } from '@/components/TaskDetailModal';
 import { AddTaskModal } from '@/components/AddTaskModal';
 import { AnnouncementsList } from '@/components/AnnouncementsList';
 import { InProgressView } from '@/components/InProgressView';
-import { AdditionalSectionsPage } from '@/components/AdditionalSectionsPage';
+// AdditionalSectionsPage removed - tab no longer displayed
 import { MigrationSetup } from '@/components/MigrationSetup';
 import { SyncStatusIndicator } from '@/components/SyncStatusIndicator';
 import { LoginScreen } from '@/components/LoginScreen';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Map, Megaphone, Zap, FolderOpen, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Map, Megaphone, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TaskCard } from '@/components/TaskCard';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -70,7 +70,7 @@ const Index = () => {
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'all'>('all');
   const [taskTypeFilter, setTaskTypeFilter] = useState<TaskType | 'all'>('all');
-  const [effectTypeFilter, setEffectTypeFilter] = useState<EffectType | 'all'>('all');
+  // effectTypeFilter removed - no longer used
   const [importanceFilter, setImportanceFilter] = useState<ImportanceRating | 'all'>('all');
   const [ownerFilter, setOwnerFilter] = useState('');
   const [sectionFilter, setSectionFilter] = useState<DigitizationSection | 'all'>('all');
@@ -180,10 +180,7 @@ const Index = () => {
         return false;
       }
 
-      // Effect type filter
-      if (effectTypeFilter !== 'all' && task.effect_type !== effectTypeFilter) {
-        return false;
-      }
+      // effectTypeFilter removed - no longer used
 
       // Importance filter
       if (importanceFilter !== 'all' && task.importance !== importanceFilter) {
@@ -202,7 +199,7 @@ const Index = () => {
 
       return true;
     });
-  }, [regularTasks, searchQuery, statusFilter, priorityFilter, taskTypeFilter, effectTypeFilter, importanceFilter, ownerFilter, sectionFilter]);
+  }, [regularTasks, searchQuery, statusFilter, priorityFilter, taskTypeFilter, importanceFilter, ownerFilter, sectionFilter]);
 
   // Group tasks by status
   const tasksByStatus = useMemo(() => {
@@ -232,7 +229,7 @@ const Index = () => {
     description?: string;
     task_type: TaskType;
     priority: TaskPriority;
-    effect_type?: EffectType;
+    // effect_type removed - no longer used
     importance?: ImportanceRating;
     digitization_section?: DigitizationSection;
     url?: string;
@@ -248,7 +245,7 @@ const Index = () => {
       task_type: data.task_type,
       author: '', // Will be set by server from session
       priority: data.priority,
-      effect_type: data.effect_type || null,
+      effect_type: null, // Deprecated - always null
       importance: data.importance || null,
       digitization_section: data.digitization_section || null,
       url: data.url || null,
@@ -327,7 +324,7 @@ const Index = () => {
           {/* Tab header with sync status */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
             {/* Mobile tabs - stacked */}
-            <TabsList className="grid w-full grid-cols-2 gap-1 h-auto p-1 sm:grid-cols-4 sm:h-10 sm:w-auto">
+            <TabsList className="grid w-full grid-cols-3 gap-1 h-auto p-1 sm:h-10 sm:w-auto">
               <TabsTrigger value="roadmap" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
                 <Map className="h-4 w-4" />
                 <span>Дорожная карта</span>
@@ -347,10 +344,6 @@ const Index = () => {
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </Badge>
                 )}
-              </TabsTrigger>
-              <TabsTrigger value="sections" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
-                <FolderOpen className="h-4 w-4" />
-                <span>Разделы</span>
               </TabsTrigger>
             </TabsList>
             
@@ -373,12 +366,10 @@ const Index = () => {
               onPriorityFilterChange={setPriorityFilter}
               taskTypeFilter={taskTypeFilter}
               onTaskTypeFilterChange={setTaskTypeFilter}
-              effectTypeFilter={effectTypeFilter}
-              onEffectTypeFilterChange={setEffectTypeFilter}
-              importanceFilter={importanceFilter}
-              onImportanceFilterChange={setImportanceFilter}
               sectionFilter={sectionFilter}
               onSectionFilterChange={setSectionFilter}
+              importanceFilter={importanceFilter}
+              onImportanceFilterChange={setImportanceFilter}
               ownerFilter={ownerFilter}
               onOwnerFilterChange={setOwnerFilter}
               owners={owners}
@@ -461,7 +452,7 @@ const Index = () => {
                             onClick={() => handleOpenAddModal('idea')}
                             className="gap-2"
                           >
-                            Добавить идею
+                            Добавить предложение
                           </Button>
                         ) : mobileStatusFilter === 'planned' ? (
                           <Button 
@@ -525,10 +516,6 @@ const Index = () => {
               isUnread={isUnread}
               onUpdateAnnouncement={updateTask}
             />
-          </TabsContent>
-
-          <TabsContent value="sections" className="mt-4">
-            <AdditionalSectionsPage />
           </TabsContent>
         </Tabs>
       </main>

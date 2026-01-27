@@ -93,7 +93,7 @@ export const PRIORITY_LABELS: Record<TaskPriority, string> = {
 };
 
 export const TASK_TYPE_LABELS: Record<TaskType, string> = {
-  'idea': 'Идея',
+  'idea': 'Предложение',
   'problem': 'Проблема',
   'task': 'Задача',
   'announcement': 'Объявление',
@@ -124,6 +124,7 @@ export const IMPORTANCE_LABELS: Record<ImportanceRating, string> = {
   'can_wait': '3 — Можно позже'
 };
 
+// Renamed from "Разделы" to "Отделы"
 export const DIGITIZATION_SECTION_LABELS: Record<DigitizationSection, string> = {
   'documents': 'Документы и требования',
   'onboarding': 'Ознакомление сотрудников',
