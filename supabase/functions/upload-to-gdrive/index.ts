@@ -1,17 +1,80 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Get allowed origins from environment or use defaults
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') || '').split(',').filter(Boolean);
+const DEFAULT_ORIGINS = [
+  'https://aktransservice.lovable.app',
+  'https://id-preview--9c08b346-b23f-479f-b9d3-6a66d9b40422.lovable.app',
+];
 
-// Parent folder ID from user
-const PARENT_FOLDER_ID = '194gw_AuUPcMI4ttdkO9dQaDzeiZNpyT4';
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowedOrigins = [...DEFAULT_ORIGINS, ...ALLOWED_ORIGINS];
+  
+  const isAllowed = origin && (
+    allowedOrigins.includes(origin) || 
+    origin.endsWith('.lovable.app') ||
+    origin.endsWith('.lovableproject.com')
+  );
+  
+  return {
+    'Access-Control-Allow-Origin': isAllowed ? origin : DEFAULT_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-session',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Max-Age': '86400',
+  };
+}
+
+// File upload validation constants
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/csv',
+  'application/zip',
+  'application/x-rar-compressed',
+];
+
+// Parent folder ID from environment (fallback to hardcoded for backwards compatibility)
+const PARENT_FOLDER_ID = Deno.env.get('GOOGLE_DRIVE_PARENT_FOLDER_ID') || '194gw_AuUPcMI4ttdkO9dQaDzeiZNpyT4';
 
 interface ServiceAccountKey {
   client_email: string;
   private_key: string;
   token_uri: string;
+}
+
+interface UserSession {
+  user_id: string;
+  name: string;
+  role: 'admin' | 'user';
+  access_code: string;
+}
+
+// Decode base64url-encoded session header
+function decodeSessionHeader(sessionHeader: string): UserSession | null {
+  try {
+    const b64 = sessionHeader.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    const json = new TextDecoder().decode(bytes);
+    const session = JSON.parse(json);
+    
+    if (!session.user_id || !session.access_code) return null;
+    return session as UserSession;
+  } catch {
+    return null;
+  }
 }
 
 async function getAccessToken(serviceAccountKey: ServiceAccountKey): Promise<string> {
@@ -154,18 +217,9 @@ async function uploadFile(
     throw new Error(`Failed to upload file: ${uploadData.error?.message || 'Unknown error'}`);
   }
   
-  // Make file publicly viewable
-  await fetch(`https://www.googleapis.com/drive/v3/files/${uploadData.id}/permissions`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      role: 'reader',
-      type: 'anyone',
-    }),
-  });
+  // Files remain private to the service account
+  // Access is provided through the application interface only
+  // No public permissions are set - this is intentional for security
   
   return {
     id: uploadData.id,
@@ -174,11 +228,33 @@ async function uploadFile(
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
   
   try {
+    // SECURITY: Validate session - require authenticated user
+    const sessionHeader = req.headers.get('X-App-Session');
+    if (!sessionHeader) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized: No session provided' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const session = decodeSessionHeader(sessionHeader);
+    if (!session) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized: Invalid session' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    console.log(`File upload requested by user: ${session.name} (${session.user_id})`);
+    
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const taskTitle = formData.get('taskTitle') as string;
@@ -193,6 +269,23 @@ Deno.serve(async (req) => {
     if (!taskTitle) {
       return new Response(
         JSON.stringify({ success: false, error: 'Task title is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // SECURITY: Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      return new Response(
+        JSON.stringify({ success: false, error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // SECURITY: Validate file type
+    const mimeType = file.type || 'application/octet-stream';
+    if (mimeType !== 'application/octet-stream' && !ALLOWED_MIME_TYPES.includes(mimeType)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'File type not allowed' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -221,7 +314,7 @@ Deno.serve(async (req) => {
       accessToken,
       fileContent,
       file.name,
-      file.type || 'application/octet-stream',
+      mimeType,
       folderId
     );
     console.log('File uploaded:', result);
@@ -241,7 +334,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error instanceof Error ? error.message : 'Failed to upload file' 
+        error: 'Failed to upload file' // Generic error message for security
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

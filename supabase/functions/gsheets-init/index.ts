@@ -128,18 +128,10 @@ Deno.serve(async (req) => {
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     
-    // Make spreadsheet accessible
-    await fetch(`https://www.googleapis.com/drive/v3/files/${spreadsheetId}/permissions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        role: 'writer',
-        type: 'anyone',
-      }),
-    });
+    // SECURITY: Spreadsheet remains private to the service account
+    // No public permissions are set - all access goes through edge functions
+    // This prevents unauthorized direct access to the spreadsheet data
+    console.log('Spreadsheet created with private access (service account only)');
     
     // Add headers to each sheet
     const batchData = [
