@@ -139,6 +139,26 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
     }
   };
 
+  const deleteTask = async (taskId: string) => {
+    try {
+      if (gsheetsEnabled) {
+        await gsheetsTasksApi.delete(taskId);
+        setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      } else {
+        const { error } = await supabase
+          .from('tasks')
+          .delete()
+          .eq('id', taskId);
+
+        if (error) throw error;
+        setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      throw error;
+    }
+  };
+
   const getTasksByStatus = (status: TaskStatus) => {
     return tasks.filter((task) => task.status === status);
   };
@@ -148,6 +168,7 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
     loading,
     addTask,
     updateTask,
+    deleteTask,
     getTasksByStatus,
     refetch: fetchTasks,
     // Sync status

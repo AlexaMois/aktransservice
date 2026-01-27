@@ -2,12 +2,24 @@ import { useState, useRef, useEffect } from 'react';
 import { Task, TaskStatus, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS, DIGITIZATION_SECTION_LABELS } from '@/types/task';
 import { useTaskComments } from '@/hooks/useTasks';
 import { supabase } from '@/integrations/supabase/client';
+import { isAdmin } from '@/lib/auth/session';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -21,7 +33,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { LinkifiedText } from '@/components/LinkifiedText';
-import { FileText, User, Calendar, ExternalLink, Clock, MessageSquare, Link2, AlertTriangle, Lightbulb, Send, CheckCircle, ListTodo, Megaphone, LinkIcon, ClipboardList, CalendarPlus, Save, Loader2, HelpCircle, FolderOpen } from 'lucide-react';
+import { FileText, User, Calendar, ExternalLink, Clock, MessageSquare, Link2, AlertTriangle, Lightbulb, Send, CheckCircle, ListTodo, Megaphone, LinkIcon, ClipboardList, CalendarPlus, Save, Loader2, HelpCircle, FolderOpen, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TaskDetailModalProps {
@@ -31,6 +43,7 @@ interface TaskDetailModalProps {
   allTasks?: Task[];
   onTaskUpdate?: (updatedTask: Task) => void;
   onUpdateTask?: (taskId: string, updates: Partial<Task>) => Promise<Task>;
+  onDeleteTask?: (taskId: string) => Promise<void>;
 }
 
 const statusVariants: Record<string, string> = {
@@ -59,7 +72,7 @@ const TaskTypeIcon = ({ type }: { type: Task['task_type'] }) => {
   return <Icon className="h-5 w-5" />;
 };
 
-export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpdate, onUpdateTask }: TaskDetailModalProps) {
+export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpdate, onUpdateTask, onDeleteTask }: TaskDetailModalProps) {
   const { comments, loading: commentsLoading, addComment } = useTaskComments(task?.id || '');
   const [commentAuthor, setCommentAuthor] = useState('');
   const [commentText, setCommentText] = useState('');
@@ -68,7 +81,9 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
   const [savingLog, setSavingLog] = useState(false);
   const [isEditingLog, setIsEditingLog] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const logTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const userIsAdmin = isAdmin();
 
   // Sync local state when task changes
   useEffect(() => {
@@ -97,6 +112,22 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
       toast.error('Ошибка при изменении статуса');
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDeleteTask) return;
+    
+    setDeleting(true);
+    try {
+      await onDeleteTask(task.id);
+      toast.success('Задача удалена');
+      onClose();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Ошибка при удалении задачи');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -181,13 +212,50 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <div className="flex items-start gap-2 sm:gap-3">
-            <div className={`shrink-0 mt-0.5 p-1.5 rounded-lg ${TASK_TYPE_COLORS[task.task_type].replace('text-', 'bg-').split(' ')[0]}`}>
-              <TaskTypeIcon type={task.task_type} />
+          <div className="flex items-start justify-between gap-2 sm:gap-3">
+            <div className="flex items-start gap-2 sm:gap-3 min-w-0 flex-1">
+              <div className={`shrink-0 mt-0.5 p-1.5 rounded-lg ${TASK_TYPE_COLORS[task.task_type].replace('text-', 'bg-').split(' ')[0]}`}>
+                <TaskTypeIcon type={task.task_type} />
+              </div>
+              <DialogTitle className="text-lg sm:text-xl font-semibold text-left pr-6">
+                {task.title}
+              </DialogTitle>
             </div>
-            <DialogTitle className="text-lg sm:text-xl font-semibold text-left pr-6">
-              {task.title}
-            </DialogTitle>
+            {userIsAdmin && onDeleteTask && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    disabled={deleting}
+                  >
+                    {deleting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Удалить задачу?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Это действие нельзя отменить. Задача "{task.title}" будет удалена навсегда.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Отмена</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDelete}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Удалить
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-3">
             {/* Status selector */}
