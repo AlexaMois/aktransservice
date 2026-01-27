@@ -119,9 +119,9 @@ export const EFFECT_TYPE_LABELS: Record<EffectType, string> = {
 };
 
 export const IMPORTANCE_LABELS: Record<ImportanceRating, string> = {
-  'critical': 'Критично',
-  'important': 'Важно',
-  'can_wait': 'Можно подождать'
+  'critical': '1 — Срочно',
+  'important': '2 — Важно',
+  'can_wait': '3 — Можно позже'
 };
 
 export const DIGITIZATION_SECTION_LABELS: Record<DigitizationSection, string> = {

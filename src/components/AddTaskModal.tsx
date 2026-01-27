@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TaskPriority, TaskType, EffectType, ImportanceRating, DigitizationSection, PRIORITY_LABELS, TASK_TYPE_LABELS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS, DIGITIZATION_SECTION_LABELS } from '@/types/task';
+import { TaskType, ImportanceRating, DigitizationSection, TASK_TYPE_LABELS, IMPORTANCE_LABELS, DIGITIZATION_SECTION_LABELS } from '@/types/task';
 import { getUserName, isAdmin } from '@/lib/auth/session';
 import {
   Dialog,
@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Upload, Loader2, AlertCircle, Lightbulb, AlertTriangle, ListTodo, Megaphone, Link, HelpCircle, User } from 'lucide-react';
+import { Upload, Loader2, AlertCircle, Lightbulb, AlertTriangle, ListTodo, Megaphone, HelpCircle, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { uploadFileToGDrive } from '@/lib/api/gdrive';
 
@@ -31,9 +31,8 @@ interface AddTaskModalProps {
     summary: string;
     description?: string;
     task_type: TaskType;
-    priority: TaskPriority;
-    effect_type?: EffectType;
-    importance?: ImportanceRating;
+    priority: 'medium';
+    importance: ImportanceRating;
     digitization_section?: DigitizationSection;
     url?: string;
     input_data_description?: string;
@@ -64,8 +63,6 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
     summary: '',
     description: '',
     task_type: defaultTaskType,
-    priority: 'medium' as TaskPriority,
-    effect_type: '' as EffectType | '',
     importance: '' as ImportanceRating | '',
     digitization_section: 'documents' as DigitizationSection,
     url: '',
@@ -80,7 +77,6 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
     }
   }, [defaultTaskType, open]);
 
-  const requiresFile = formData.task_type === 'task' || formData.task_type === 'problem';
   const requiresSection = formData.task_type !== 'announcement';
   
   // Only admins can create announcements
@@ -105,8 +101,6 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
       summary: '',
       description: '',
       task_type: defaultTaskType,
-      priority: 'medium',
-      effect_type: '',
       importance: '',
       digitization_section: 'documents',
       url: '',
@@ -128,20 +122,12 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
       toast.error('Введите суть записи');
       return;
     }
+    if (!formData.importance) {
+      toast.error('Выберите важность');
+      return;
+    }
     if (requiresSection && !formData.digitization_section) {
       toast.error('Выберите раздел цифровизации');
-      return;
-    }
-    if (requiresFile && !selectedFile) {
-      toast.error('Прикрепите файл с входными данными');
-      return;
-    }
-    if (requiresFile && !formData.input_data_description.trim()) {
-      toast.error('Опишите входные данные');
-      return;
-    }
-    if (formData.task_type === 'problem' && !formData.problem_description.trim()) {
-      toast.error('Опишите проблему');
       return;
     }
 
@@ -179,9 +165,8 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
         summary: formData.summary,
         description: formData.description || undefined,
         task_type: formData.task_type,
-        priority: formData.priority,
-        effect_type: formData.effect_type || undefined,
-        importance: formData.importance || undefined,
+        priority: 'medium',
+        importance: formData.importance as ImportanceRating,
         digitization_section: formData.digitization_section || undefined,
         url: formData.url || undefined,
         input_data_description: formData.input_data_description || undefined,
@@ -248,7 +233,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
               id="title"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="Краткое название"
+              placeholder="Коротко и понятно, о чём речь"
             />
           </div>
 
@@ -260,11 +245,11 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
               id="summary"
               value={formData.summary}
               onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-              placeholder="Краткое описание в 1–2 предложения"
+              placeholder="Короткое описание"
               rows={2}
             />
             <p className="text-xs text-muted-foreground">
-              Кратко опишите, в чём проблема или что нужно улучшить
+              Опишите в 1–2 предложениях, что именно предлагается или в чём проблема
             </p>
           </div>
 
@@ -274,7 +259,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
               id="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Подробное описание (опционально)"
+              placeholder="Подробности (при необходимости)"
               rows={3}
             />
           </div>
@@ -283,7 +268,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
           {formData.task_type === 'problem' && (
             <div className="space-y-2">
               <Label htmlFor="problem_description">
-                Описание проблемы <span className="text-destructive">*</span>
+                Описание проблемы
               </Label>
               <Textarea
                 id="problem_description"
@@ -295,69 +280,17 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
             </div>
           )}
 
-          {/* URL field */}
+          {/* Importance - simplified 1-2-3 */}
           <div className="space-y-2">
-            <Label htmlFor="url" className="flex items-center gap-1.5">
-              <Link className="h-3.5 w-3.5" />
-              Ссылка
+            <Label>
+              Важность <span className="text-destructive">*</span>
             </Label>
-            <Input
-              id="url"
-              type="url"
-              value={formData.url}
-              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-              placeholder="https://..."
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Приоритет</Label>
-              <Select
-                value={formData.priority}
-                onValueChange={(value: TaskPriority) => setFormData({ ...formData, priority: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Тип эффекта</Label>
-              <Select
-                value={formData.effect_type}
-                onValueChange={(value: EffectType) => setFormData({ ...formData, effect_type: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(EFFECT_TYPE_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Важность</Label>
             <Select
               value={formData.importance}
               onValueChange={(value: ImportanceRating) => setFormData({ ...formData, importance: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Выберите..." />
+                <SelectValue placeholder="Выберите важность..." />
               </SelectTrigger>
               <SelectContent>
                 {Object.entries(IMPORTANCE_LABELS).map(([value, label]) => (
@@ -390,17 +323,12 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                К какой части работы компании относится этот вопрос
-              </p>
             </div>
           )}
 
-          {/* File upload - required for tasks and problems */}
+          {/* File upload - optional */}
           <div className="space-y-2">
-            <Label>
-              Входные данные (файл) {requiresFile && <span className="text-destructive">*</span>}
-            </Label>
+            <Label>Файл</Label>
             <div className="border-2 border-dashed border-border rounded-lg p-3 sm:p-4 text-center hover:border-primary/50 transition-colors">
               <input
                 type="file"
@@ -425,14 +353,14 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
               </label>
             </div>
             <p className="text-xs text-muted-foreground">
-              Документ, файл или скриншот. Без входных данных задача не берётся в работу
+              Документ, файл или скриншот — при наличии
             </p>
           </div>
 
-          {(selectedFile || requiresFile) && (
+          {selectedFile && (
             <div className="space-y-2">
               <Label htmlFor="input_data_description">
-                Описание входных данных {requiresFile && <span className="text-destructive">*</span>}
+                Описание файла
               </Label>
               <Textarea
                 id="input_data_description"
