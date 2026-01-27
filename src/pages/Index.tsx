@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Task, TaskStatus, TaskPriority, TaskType, ImportanceRating, DigitizationSection, STATUS_LABELS } from '@/types/task';
+import { Task, TaskStatus, TaskPriority, TaskType, ImportanceRating, Department, STATUS_LABELS } from '@/types/task';
 import { useGSheetsTasks } from '@/hooks/useGSheetsTasks';
 import { useDragOptimistic } from '@/hooks/useDragOptimistic';
 import { useAnnouncementReadStatus, hasUserId } from '@/hooks/useAnnouncementReadStatus';
@@ -73,7 +73,7 @@ const Index = () => {
   // effectTypeFilter removed - no longer used
   const [importanceFilter, setImportanceFilter] = useState<ImportanceRating | 'all'>('all');
   const [ownerFilter, setOwnerFilter] = useState('');
-  const [sectionFilter, setSectionFilter] = useState<DigitizationSection | 'all'>('all');
+  const [departmentFilter, setDepartmentFilter] = useState<Department | 'all'>('all');
 
   // Swipe navigation for mobile
   const currentStatusIndex = STATUSES.indexOf(mobileStatusFilter);
@@ -192,14 +192,14 @@ const Index = () => {
         return false;
       }
 
-      // Section filter
-      if (sectionFilter !== 'all' && task.digitization_section !== sectionFilter) {
+      // Department filter
+      if (departmentFilter !== 'all' && task.department !== departmentFilter) {
         return false;
       }
 
       return true;
     });
-  }, [regularTasks, searchQuery, statusFilter, priorityFilter, taskTypeFilter, importanceFilter, ownerFilter, sectionFilter]);
+  }, [regularTasks, searchQuery, statusFilter, priorityFilter, taskTypeFilter, importanceFilter, ownerFilter, departmentFilter]);
 
   // Group tasks by status
   const tasksByStatus = useMemo(() => {
@@ -231,7 +231,7 @@ const Index = () => {
     priority: TaskPriority;
     // effect_type removed - no longer used
     importance?: ImportanceRating;
-    digitization_section?: DigitizationSection;
+    department?: Department;
     url?: string;
     input_data_description?: string;
     problem_description?: string;
@@ -247,7 +247,8 @@ const Index = () => {
       priority: data.priority,
       effect_type: null, // Deprecated - always null
       importance: data.importance || null,
-      digitization_section: data.digitization_section || null,
+      department: data.department || null,
+      digitization_section: null, // Deprecated - use department
       url: data.url || null,
       input_data_description: data.input_data_description || null,
       problem_description: data.problem_description || null,
@@ -366,8 +367,8 @@ const Index = () => {
               onPriorityFilterChange={setPriorityFilter}
               taskTypeFilter={taskTypeFilter}
               onTaskTypeFilterChange={setTaskTypeFilter}
-              sectionFilter={sectionFilter}
-              onSectionFilterChange={setSectionFilter}
+              departmentFilter={departmentFilter}
+              onDepartmentFilterChange={setDepartmentFilter}
               importanceFilter={importanceFilter}
               onImportanceFilterChange={setImportanceFilter}
               ownerFilter={ownerFilter}

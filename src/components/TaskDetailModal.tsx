@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Task, TaskStatus, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS, IMPORTANCE_LABELS, DIGITIZATION_SECTION_LABELS } from '@/types/task';
+import { Task, TaskStatus, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS, IMPORTANCE_LABELS, DEPARTMENT_LABELS } from '@/types/task';
 import { useTaskComments } from '@/hooks/useTasks';
 import { supabase } from '@/integrations/supabase/client';
 import { isAdmin } from '@/lib/auth/session';
@@ -291,10 +291,12 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
                 {IMPORTANCE_LABELS[task.importance]}
               </Badge>
             )}
-            <Badge variant="outline" className="text-xs gap-1">
-              <FolderOpen className="h-3 w-3" />
-              {DIGITIZATION_SECTION_LABELS[task.digitization_section || 'documents']}
-            </Badge>
+            {task.department && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <FolderOpen className="h-3 w-3" />
+                {DEPARTMENT_LABELS[task.department]}
+              </Badge>
+            )}
           </div>
         </DialogHeader>
 

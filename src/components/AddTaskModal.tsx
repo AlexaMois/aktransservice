@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TaskType, ImportanceRating, DigitizationSection, TASK_TYPE_LABELS, IMPORTANCE_LABELS, DIGITIZATION_SECTION_LABELS } from '@/types/task';
+import { TaskType, ImportanceRating, Department, TASK_TYPE_LABELS, IMPORTANCE_LABELS, DEPARTMENT_LABELS } from '@/types/task';
 import { getUserName, isAdmin } from '@/lib/auth/session';
 import {
   Dialog,
@@ -33,7 +33,7 @@ interface AddTaskModalProps {
     task_type: TaskType;
     priority: 'medium';
     importance: ImportanceRating;
-    digitization_section?: DigitizationSection;
+    department?: Department;
     url?: string;
     input_data_description?: string;
     problem_description?: string;
@@ -64,7 +64,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
     description: '',
     task_type: defaultTaskType,
     importance: '' as ImportanceRating | '',
-    digitization_section: 'documents' as DigitizationSection,
+    department: 'digitization_it' as Department,
     url: '',
     input_data_description: '',
     problem_description: '',
@@ -77,7 +77,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
     }
   }, [defaultTaskType, open]);
 
-  const requiresSection = formData.task_type !== 'announcement';
+  const requiresDepartment = formData.task_type !== 'announcement';
   
   // Only admins can create announcements
   const canCreateAnnouncement = userIsAdmin;
@@ -102,7 +102,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
       description: '',
       task_type: defaultTaskType,
       importance: '',
-      digitization_section: 'documents',
+      department: 'digitization_it',
       url: '',
       input_data_description: '',
       problem_description: '',
@@ -126,7 +126,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
       toast.error('Выберите важность');
       return;
     }
-    if (requiresSection && !formData.digitization_section) {
+    if (requiresDepartment && !formData.department) {
       toast.error('Выберите отдел');
       return;
     }
@@ -167,7 +167,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
         task_type: formData.task_type,
         priority: 'medium',
         importance: formData.importance as ImportanceRating,
-        digitization_section: formData.digitization_section || undefined,
+        department: formData.department || undefined,
         url: formData.url || undefined,
         input_data_description: formData.input_data_description || undefined,
         problem_description: formData.task_type === 'problem' ? formData.problem_description : undefined,
@@ -315,20 +315,20 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
           </div>
 
           {/* Department - required for all except announcements */}
-          {requiresSection && (
+          {requiresDepartment && (
             <div className="space-y-2">
               <Label>
                 Отдел <span className="text-destructive">*</span>
               </Label>
               <Select
-                value={formData.digitization_section}
-                onValueChange={(value: DigitizationSection) => setFormData({ ...formData, digitization_section: value })}
+                value={formData.department}
+                onValueChange={(value: Department) => setFormData({ ...formData, department: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Выберите отдел..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(DIGITIZATION_SECTION_LABELS).map(([value, label]) => (
+                  {Object.entries(DEPARTMENT_LABELS).map(([value, label]) => (
                     <SelectItem key={value} value={value}>
                       {label}
                     </SelectItem>

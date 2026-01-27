@@ -3,6 +3,10 @@ export type TaskPriority = 'high' | 'medium' | 'low';
 export type TaskType = 'idea' | 'problem' | 'task' | 'announcement' | 'question';
 export type EffectType = 'security' | 'compliance' | 'reduce_manual_work' | 'process_speed' | 'transparency' | 'audit_prep' | 'financial';
 export type ImportanceRating = 'critical' | 'important' | 'can_wait';
+// Department = company departments for task classification
+export type Department = 'digitization_it' | 'finance' | 'hr' | 'legal_safety' | 'portal_culture' | 'transport_production' | 'management';
+
+// DEPRECATED: kept for backwards compatibility during migration
 export type DigitizationSection = 'documents' | 'onboarding' | 'training' | 'hr_accounting' | 'shifts' | 'reporting' | 'it_systems';
 
 export interface Task {
@@ -15,7 +19,8 @@ export interface Task {
   priority: TaskPriority;
   effect_type?: EffectType | null;
   importance?: ImportanceRating | null;
-  digitization_section?: DigitizationSection | null;
+  department?: Department | null;
+  digitization_section?: DigitizationSection | null; // DEPRECATED - use department
   author: string;
   owner?: string | null;
   url?: string | null;
@@ -124,7 +129,18 @@ export const IMPORTANCE_LABELS: Record<ImportanceRating, string> = {
   'can_wait': '3 — Можно позже'
 };
 
-// Renamed from "Разделы" to "Отделы"
+// Company departments for task classification
+export const DEPARTMENT_LABELS: Record<Department, string> = {
+  'digitization_it': 'Цифровизация и IT',
+  'finance': 'Финансы и бухгалтерия',
+  'hr': 'Кадры',
+  'legal_safety': 'Юридическое направление и промышленная безопасность',
+  'portal_culture': 'Портал, культура и организационная деятельность',
+  'transport_production': 'Транспорт и производство',
+  'management': 'Руководство',
+};
+
+// DEPRECATED: kept for backwards compatibility
 export const DIGITIZATION_SECTION_LABELS: Record<DigitizationSection, string> = {
   'documents': 'Документы и требования',
   'onboarding': 'Ознакомление сотрудников',

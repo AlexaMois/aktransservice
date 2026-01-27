@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TaskStatus, TaskPriority, TaskType, ImportanceRating, DigitizationSection, STATUS_LABELS, PRIORITY_LABELS, TASK_TYPE_LABELS, IMPORTANCE_LABELS, DIGITIZATION_SECTION_LABELS } from '@/types/task';
+import { TaskStatus, TaskPriority, TaskType, ImportanceRating, Department, STATUS_LABELS, PRIORITY_LABELS, TASK_TYPE_LABELS, IMPORTANCE_LABELS, DEPARTMENT_LABELS } from '@/types/task';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,8 +30,8 @@ interface SearchAndFiltersProps {
   onTaskTypeFilterChange: (type: TaskType | 'all') => void;
   importanceFilter: ImportanceRating | 'all';
   onImportanceFilterChange: (importance: ImportanceRating | 'all') => void;
-  sectionFilter: DigitizationSection | 'all';
-  onSectionFilterChange: (section: DigitizationSection | 'all') => void;
+  departmentFilter: Department | 'all';
+  onDepartmentFilterChange: (department: Department | 'all') => void;
   ownerFilter: string;
   onOwnerFilterChange: (owner: string) => void;
   owners: string[];
@@ -49,8 +49,8 @@ export function SearchAndFilters({
   onTaskTypeFilterChange,
   importanceFilter,
   onImportanceFilterChange,
-  sectionFilter,
-  onSectionFilterChange,
+  departmentFilter,
+  onDepartmentFilterChange,
   ownerFilter,
   onOwnerFilterChange,
   owners,
@@ -63,7 +63,7 @@ export function SearchAndFilters({
     priorityFilter !== 'all',
     taskTypeFilter !== 'all',
     importanceFilter !== 'all',
-    sectionFilter !== 'all',
+    departmentFilter !== 'all',
     ownerFilter !== '',
   ].filter(Boolean).length;
 
@@ -75,7 +75,7 @@ export function SearchAndFilters({
     onPriorityFilterChange('all');
     onTaskTypeFilterChange('all');
     onImportanceFilterChange('all');
-    onSectionFilterChange('all');
+    onDepartmentFilterChange('all');
     onOwnerFilterChange('');
   };
 
@@ -135,16 +135,16 @@ export function SearchAndFilters({
         </Select>
       </div>
 
-      {/* Department filter (renamed from Section) */}
+      {/* Department filter */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-foreground">Отдел</label>
-        <Select value={sectionFilter} onValueChange={(v) => onSectionFilterChange(v as DigitizationSection | 'all')}>
+        <Select value={departmentFilter} onValueChange={(v) => onDepartmentFilterChange(v as Department | 'all')}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Все отделы" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Все отделы</SelectItem>
-            {Object.entries(DIGITIZATION_SECTION_LABELS).map(([value, label]) => (
+            {Object.entries(DEPARTMENT_LABELS).map(([value, label]) => (
               <SelectItem key={value} value={value}>
                 {label}
               </SelectItem>
@@ -285,14 +285,14 @@ export function SearchAndFilters({
           </SelectContent>
         </Select>
 
-        {/* Department filter (renamed from Section) */}
-        <Select value={sectionFilter} onValueChange={(v) => onSectionFilterChange(v as DigitizationSection | 'all')}>
+        {/* Department filter */}
+        <Select value={departmentFilter} onValueChange={(v) => onDepartmentFilterChange(v as Department | 'all')}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Отдел" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Все отделы</SelectItem>
-            {Object.entries(DIGITIZATION_SECTION_LABELS).map(([value, label]) => (
+            {Object.entries(DEPARTMENT_LABELS).map(([value, label]) => (
               <SelectItem key={value} value={value}>
                 {label}
               </SelectItem>
