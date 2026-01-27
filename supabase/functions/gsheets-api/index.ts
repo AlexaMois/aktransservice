@@ -130,13 +130,14 @@ async function getAccessToken(serviceAccountKey: ServiceAccountKey): Promise<str
 }
 
 // Column mappings
-// NOTE: effect_type is DEPRECATED - kept for backwards compatibility with existing data, 
-// but no longer used in the UI or new task creation
+// NOTE: effect_type and digitization_section are DEPRECATED - kept for backwards compatibility
+// New field: department - company departments for task classification
 const TASK_COLUMNS = [
   'id', 'title', 'summary', 'description', 'task_type', 'status', 'priority',
-  'effect_type', 'importance', 'author', 'owner', 'url', 'input_data_description',
+  'effect_type', 'importance', 'department', 'author', 'owner', 'url', 'input_data_description',
   'file_name', 'file_url', 'problem_description', 'linked_idea_id', 'linked_problem_id',
-  'result_before', 'result_action', 'result_after', 'execution_log', 'created_at', 'updated_at'
+  'result_before', 'result_action', 'result_after', 'execution_log', 'created_at', 'updated_at',
+  'digitization_section' // DEPRECATED - kept for backwards compatibility
 ];
 
 const ANNOUNCEMENT_COLUMNS = [
@@ -846,8 +847,8 @@ Deno.serve(async (req) => {
           }
           
           // SECURITY: Author is set from session, not from client data
-          // Remove effect_type from data as it's deprecated
-          const { effect_type: _, ...cleanData } = data;
+          // Remove deprecated fields from data
+          const { effect_type: _, digitization_section: __, ...cleanData } = data;
           const newTask = {
             ...cleanData,
             id: crypto.randomUUID(),
@@ -857,7 +858,9 @@ Deno.serve(async (req) => {
             priority: data.priority || 'medium',
             task_type: data.task_type || 'idea',
             importance: importance,
+            department: data.department || 'digitization_it', // Default department
             effect_type: null, // DEPRECATED - always null for new tasks
+            digitization_section: null, // DEPRECATED - always null for new tasks
             author: user.name, // Force author from session
           };
           const row = objectToRow(newTask, TASK_COLUMNS);
@@ -890,8 +893,8 @@ Deno.serve(async (req) => {
           }
           
           // SECURITY: Ignore author field from client
-          // Also ignore effect_type as it's deprecated
-          const { author: _author, effect_type: _effect, ...safeData } = data;
+          // Also ignore deprecated fields
+          const { author: _author, effect_type: _effect, digitization_section: _section, ...safeData } = data;
           
           // Validate and normalize importance if being updated
           if (safeData.importance !== undefined) {
