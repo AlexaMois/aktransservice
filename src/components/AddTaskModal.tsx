@@ -280,6 +280,18 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
             </div>
           )}
 
+          {/* URL field */}
+          <div className="space-y-2">
+            <Label htmlFor="url">Ссылка</Label>
+            <Input
+              id="url"
+              type="url"
+              value={formData.url}
+              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+              placeholder="https://..."
+            />
+          </div>
+
           {/* Importance - simplified 1-2-3 */}
           <div className="space-y-2">
             <Label>
