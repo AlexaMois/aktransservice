@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { Task, TaskStatus } from '@/types/task';
 import { DraggableTaskCard } from './DraggableTaskCard';
@@ -10,6 +11,7 @@ interface DroppableKanbanColumnProps {
   tasks: Task[];
   onTaskClick: (task: Task) => void;
   onAddClick?: (defaultType: 'idea' | 'task') => void;
+  isTaskSyncing?: (taskId: string) => boolean;
 }
 
 const statusColors: Record<TaskStatus, string> = {
@@ -36,7 +38,13 @@ const STATUS_SHORT_LABELS: Record<TaskStatus, string> = {
   'completed': 'Готово',
 };
 
-export function DroppableKanbanColumn({ status, tasks, onTaskClick, onAddClick }: DroppableKanbanColumnProps) {
+export const DroppableKanbanColumn = memo(function DroppableKanbanColumn({ 
+  status, 
+  tasks, 
+  onTaskClick, 
+  onAddClick,
+  isTaskSyncing,
+}: DroppableKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: status,
   });
@@ -70,7 +78,8 @@ export function DroppableKanbanColumn({ status, tasks, onTaskClick, onAddClick }
             <DraggableTaskCard 
               key={task.id} 
               task={task} 
-              onClick={() => onTaskClick(task)} 
+              onClick={() => onTaskClick(task)}
+              isSyncing={isTaskSyncing?.(task.id)}
             />
           ))}
           
@@ -97,4 +106,4 @@ export function DroppableKanbanColumn({ status, tasks, onTaskClick, onAddClick }
       </ScrollArea>
     </div>
   );
-}
+});
