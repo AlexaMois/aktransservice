@@ -830,6 +830,19 @@ Deno.serve(async (req) => {
           }
         } else if (action === 'create') {
           const now = new Date().toISOString();
+          
+          // Validate and normalize importance
+          const validImportance = ['critical', 'important', 'can_wait'];
+          let importance = data.importance;
+          if (importance && !validImportance.includes(importance)) {
+            console.log(`Invalid importance value "${importance}", defaulting to can_wait`);
+            importance = 'can_wait';
+          }
+          // Default to can_wait if not provided
+          if (!importance) {
+            importance = 'can_wait';
+          }
+          
           // SECURITY: Author is set from session, not from client data
           const newTask = {
             ...data,
@@ -839,6 +852,7 @@ Deno.serve(async (req) => {
             status: data.status || 'ideas',
             priority: data.priority || 'medium',
             task_type: data.task_type || 'idea',
+            importance: importance,
             author: user.name, // Force author from session
           };
           const row = objectToRow(newTask, TASK_COLUMNS);
@@ -872,6 +886,15 @@ Deno.serve(async (req) => {
           
           // SECURITY: Ignore author field from client
           const { author: _, ...safeData } = data;
+          
+          // Validate and normalize importance if being updated
+          if (safeData.importance !== undefined) {
+            const validImportance = ['critical', 'important', 'can_wait'];
+            if (safeData.importance && !validImportance.includes(safeData.importance)) {
+              console.log(`Invalid importance value "${safeData.importance}" in update, defaulting to can_wait`);
+              safeData.importance = 'can_wait';
+            }
+          }
           
           const updatedTask = {
             ...existingTask,

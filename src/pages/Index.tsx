@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Task, TaskStatus, TaskPriority, TaskType, EffectType, ImportanceRating, DigitizationSection, STATUS_LABELS } from '@/types/task';
 import { useGSheetsTasks } from '@/hooks/useGSheetsTasks';
+import { useDragOptimistic } from '@/hooks/useDragOptimistic';
 import { useAnnouncementReadStatus, hasUserId } from '@/hooks/useAnnouncementReadStatus';
 import { isAuthenticated, clearSession, isAdmin } from '@/lib/auth/session';
 import { useSwipe } from '@/hooks/useSwipe';
@@ -37,6 +38,17 @@ const Index = () => {
   const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus>('ideas');
   const [showMigration, setShowMigration] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  
+  // Optimistic drag & drop with debouncing
+  const { 
+    updateTaskStatus, 
+    tasksWithOptimistic, 
+    isTaskSyncing, 
+  } = useDragOptimistic({
+    tasks,
+    onUpdateTask: updateTask,
+    debounceMs: 400,
+  });
   
   // DnD sensors with activation constraints to allow clicks
   const sensors = useSensors(
@@ -93,12 +105,12 @@ const Index = () => {
     return Array.from(ownerSet).sort();
   }, [tasks]);
 
-  // Separate announcements from regular tasks
+  // Separate announcements from regular tasks - use optimistic data for tasks
   const { announcements, regularTasks } = useMemo(() => {
     const announcements: Task[] = [];
     const regularTasks: Task[] = [];
     
-    tasks.forEach((task) => {
+    tasksWithOptimistic.forEach((task) => {
       if (task.task_type === 'announcement') {
         announcements.push(task);
       } else {
@@ -110,7 +122,7 @@ const Index = () => {
     announcements.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     
     return { announcements, regularTasks };
-  }, [tasks]);
+  }, [tasksWithOptimistic]);
 
   // Track read status for announcements
   const { unreadCount, markAllAsRead, isUnread, hasUnread, needsUserName } = useAnnouncementReadStatus(announcements);
@@ -257,7 +269,7 @@ const Index = () => {
     refetch();
   };
 
-  // Handle drag end - update task status
+  // Handle drag end - update task status with optimistic update
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveDragId(null);
     const { active, over } = event;
@@ -266,15 +278,16 @@ const Index = () => {
     
     const taskId = active.id as string;
     const newStatus = over.id as TaskStatus;
-    const task = tasks.find(t => t.id === taskId);
+    const task = tasksWithOptimistic.find(t => t.id === taskId);
     
     if (!task || task.status === newStatus) return;
     
-    try {
-      await updateTask(taskId, { status: newStatus });
+    // Use optimistic update - no await, immediate visual feedback
+    const success = await updateTaskStatus(taskId, newStatus);
+    
+    if (success) {
       toast.success(`Статус изменён на "${STATUS_LABELS[newStatus]}"`);
-    } catch (error) {
-      console.error('Error updating task status:', error);
+    } else {
       toast.error('Ошибка при изменении статуса');
     }
   };
@@ -283,7 +296,7 @@ const Index = () => {
     setActiveDragId(event.active.id as string);
   };
 
-  const activeDragTask = activeDragId ? tasks.find(t => t.id === activeDragId) : null;
+  const activeDragTask = activeDragId ? tasksWithOptimistic.find(t => t.id === activeDragId) : null;
 
   // Show login screen if not authenticated
   if (!isLoggedIn) {
@@ -482,6 +495,7 @@ const Index = () => {
                           tasks={tasksByStatus[status]}
                           onTaskClick={setSelectedTask}
                           onAddClick={(type) => handleOpenAddModal(type)}
+                          isTaskSyncing={isTaskSyncing}
                         />
                       ))}
                     </div>
