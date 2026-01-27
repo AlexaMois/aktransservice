@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TaskStatus, TaskPriority, TaskType, EffectType, ImportanceRating, DigitizationSection, STATUS_LABELS, PRIORITY_LABELS, TASK_TYPE_LABELS, EFFECT_TYPE_LABELS, IMPORTANCE_LABELS, DIGITIZATION_SECTION_LABELS } from '@/types/task';
+import { TaskStatus, TaskPriority, TaskType, ImportanceRating, DigitizationSection, STATUS_LABELS, PRIORITY_LABELS, TASK_TYPE_LABELS, IMPORTANCE_LABELS, DIGITIZATION_SECTION_LABELS } from '@/types/task';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,7 +16,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { Search, X, Plus, Filter, SlidersHorizontal } from 'lucide-react';
+import { Search, X, Plus, SlidersHorizontal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface SearchAndFiltersProps {
@@ -28,8 +28,6 @@ interface SearchAndFiltersProps {
   onPriorityFilterChange: (priority: TaskPriority | 'all') => void;
   taskTypeFilter: TaskType | 'all';
   onTaskTypeFilterChange: (type: TaskType | 'all') => void;
-  effectTypeFilter: EffectType | 'all';
-  onEffectTypeFilterChange: (effect: EffectType | 'all') => void;
   importanceFilter: ImportanceRating | 'all';
   onImportanceFilterChange: (importance: ImportanceRating | 'all') => void;
   sectionFilter: DigitizationSection | 'all';
@@ -49,8 +47,6 @@ export function SearchAndFilters({
   onPriorityFilterChange,
   taskTypeFilter,
   onTaskTypeFilterChange,
-  effectTypeFilter,
-  onEffectTypeFilterChange,
   importanceFilter,
   onImportanceFilterChange,
   sectionFilter,
@@ -66,7 +62,6 @@ export function SearchAndFilters({
     statusFilter !== 'all',
     priorityFilter !== 'all',
     taskTypeFilter !== 'all',
-    effectTypeFilter !== 'all',
     importanceFilter !== 'all',
     sectionFilter !== 'all',
     ownerFilter !== '',
@@ -79,7 +74,6 @@ export function SearchAndFilters({
     onStatusFilterChange('all');
     onPriorityFilterChange('all');
     onTaskTypeFilterChange('all');
-    onEffectTypeFilterChange('all');
     onImportanceFilterChange('all');
     onSectionFilterChange('all');
     onOwnerFilterChange('');
@@ -123,24 +117,6 @@ export function SearchAndFilters({
         </Select>
       </div>
 
-      {/* Effect type filter */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-foreground">Тип эффекта</label>
-        <Select value={effectTypeFilter} onValueChange={(v) => onEffectTypeFilterChange(v as EffectType | 'all')}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Все эффекты" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Все эффекты</SelectItem>
-            {Object.entries(EFFECT_TYPE_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
       {/* Importance filter */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-foreground">Важность</label>
@@ -159,15 +135,15 @@ export function SearchAndFilters({
         </Select>
       </div>
 
-      {/* Section filter */}
+      {/* Department filter (renamed from Section) */}
       <div className="space-y-2">
-        <label className="text-sm font-medium text-foreground">Раздел</label>
+        <label className="text-sm font-medium text-foreground">Отдел</label>
         <Select value={sectionFilter} onValueChange={(v) => onSectionFilterChange(v as DigitizationSection | 'all')}>
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="Все разделы" />
+            <SelectValue placeholder="Все отделы" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Все разделы</SelectItem>
+            <SelectItem value="all">Все отделы</SelectItem>
             {Object.entries(DIGITIZATION_SECTION_LABELS).map(([value, label]) => (
               <SelectItem key={value} value={value}>
                 {label}
@@ -294,21 +270,6 @@ export function SearchAndFilters({
           </SelectContent>
         </Select>
 
-        {/* Effect type filter */}
-        <Select value={effectTypeFilter} onValueChange={(v) => onEffectTypeFilterChange(v as EffectType | 'all')}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Тип эффекта" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Все эффекты</SelectItem>
-            {Object.entries(EFFECT_TYPE_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         {/* Importance filter */}
         <Select value={importanceFilter} onValueChange={(v) => onImportanceFilterChange(v as ImportanceRating | 'all')}>
           <SelectTrigger className="w-[160px]">
@@ -324,13 +285,13 @@ export function SearchAndFilters({
           </SelectContent>
         </Select>
 
-        {/* Section filter */}
+        {/* Department filter (renamed from Section) */}
         <Select value={sectionFilter} onValueChange={(v) => onSectionFilterChange(v as DigitizationSection | 'all')}>
           <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Раздел" />
+            <SelectValue placeholder="Отдел" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Все разделы</SelectItem>
+            <SelectItem value="all">Все отделы</SelectItem>
             {Object.entries(DIGITIZATION_SECTION_LABELS).map(([value, label]) => (
               <SelectItem key={value} value={value}>
                 {label}

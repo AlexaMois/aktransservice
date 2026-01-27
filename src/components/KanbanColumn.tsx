@@ -39,7 +39,7 @@ const STATUS_SHORT_LABELS: Record<TaskStatus, string> = {
 export function KanbanColumn({ status, tasks, onTaskClick, onAddClick }: KanbanColumnProps) {
   const showAddButton = (status === 'ideas' || status === 'planned') && tasks.length === 0;
   const addButtonConfig = status === 'ideas' 
-    ? { label: 'Добавить', icon: Lightbulb, type: 'idea' as const }
+    ? { label: 'Добавить', icon: Lightbulb, type: 'idea' as const }  // "Предложение" type
     : { label: 'Добавить', icon: ListTodo, type: 'task' as const };
 
   return (
