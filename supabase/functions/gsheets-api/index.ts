@@ -130,12 +130,13 @@ async function getAccessToken(serviceAccountKey: ServiceAccountKey): Promise<str
 
 // Column mappings
 // NOTE: effect_type and digitization_section are DEPRECATED - kept for backwards compatibility
-// New field: department - company departments for task classification
+// New fields: department, task_scope, due_date, reminder_sent
 const TASK_COLUMNS = [
   'id', 'title', 'summary', 'description', 'task_type', 'status', 'priority',
-  'effect_type', 'importance', 'department', 'author', 'owner', 'url', 'input_data_description',
+  'effect_type', 'importance', 'department', 'task_scope', 'author', 'owner', 'url', 'input_data_description',
   'file_name', 'file_url', 'problem_description', 'linked_idea_id', 'linked_problem_id',
-  'result_before', 'result_action', 'result_after', 'execution_log', 'created_at', 'updated_at',
+  'result_before', 'result_action', 'result_after', 'execution_log', 
+  'due_date', 'reminder_sent', 'created_at', 'updated_at',
   'digitization_section' // DEPRECATED - kept for backwards compatibility
 ];
 
@@ -237,8 +238,8 @@ function rowToObject(row: string[], headers: string[]): Record<string, any> {
   const obj: Record<string, any> = {};
   headers.forEach((header, index) => {
     const value = row[index] || null;
-    // Convert 'true'/'false' strings to booleans for 'active' field
-    if (header === 'active') {
+    // Convert 'true'/'false' strings to booleans for boolean fields
+    if (header === 'active' || header === 'reminder_sent') {
       obj[header] = value === 'true' || value === 'TRUE';
     } else {
       obj[header] = value === '' ? null : value;
@@ -749,6 +750,9 @@ Deno.serve(async (req) => {
             task_type: data.task_type || 'idea',
             importance: importance,
             department: data.department || 'digitization_it', // Default department
+            task_scope: data.task_scope || 'digitization', // Default scope
+            due_date: data.due_date || null,
+            reminder_sent: data.reminder_sent === true ? 'true' : 'false',
             effect_type: null, // DEPRECATED - always null for new tasks
             digitization_section: null, // DEPRECATED - always null for new tasks
             author: user.name, // Force author from session
