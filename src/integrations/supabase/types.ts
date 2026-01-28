@@ -302,8 +302,8 @@ export type Database = {
         | "financial"
       importance_rating: "critical" | "important" | "can_wait"
       task_priority: "high" | "medium" | "low"
-      task_status: "ideas" | "planned" | "in-progress" | "completed"
-      task_type: "idea" | "problem" | "task" | "announcement"
+      task_status: "ideas" | "planned" | "in-progress" | "completed" | "review"
+      task_type: "idea" | "problem" | "task" | "announcement" | "question"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -443,8 +443,8 @@ export const Constants = {
       ],
       importance_rating: ["critical", "important", "can_wait"],
       task_priority: ["high", "medium", "low"],
-      task_status: ["ideas", "planned", "in-progress", "completed"],
-      task_type: ["idea", "problem", "task", "announcement"],
+      task_status: ["ideas", "planned", "in-progress", "completed", "review"],
+      task_type: ["idea", "problem", "task", "announcement", "question"],
     },
   },
 } as const
