@@ -5,7 +5,7 @@ import { useDragOptimistic } from '@/hooks/useDragOptimistic';
 import { useAnnouncementReadStatus, hasUserId } from '@/hooks/useAnnouncementReadStatus';
 import { isAuthenticated, clearSession, isAdmin } from '@/lib/auth/session';
 import { useSwipe } from '@/hooks/useSwipe';
-import { DndContext, DragEndEvent, DragOverlay, pointerWithin, useSensor, useSensors, PointerSensor, TouchSensor } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverlay, rectIntersection, useSensor, useSensors, PointerSensor, TouchSensor, MeasuringStrategy } from '@dnd-kit/core';
 import { Header } from '@/components/Header';
 import { SearchAndFilters } from '@/components/SearchAndFilters';
 import { KanbanColumn } from '@/components/KanbanColumn';
@@ -270,16 +270,30 @@ const Index = () => {
 
   // Handle drag end - update task status with optimistic update
   const handleDragEnd = async (event: DragEndEvent) => {
+    console.log('DragEnd event:', { activeId: event.active?.id, overId: event.over?.id });
     setActiveDragId(null);
     const { active, over } = event;
     
-    if (!over) return;
+    if (!over) {
+      console.log('DragEnd: no over target');
+      return;
+    }
     
     const taskId = active.id as string;
     const newStatus = over.id as TaskStatus;
     const task = tasksWithOptimistic.find(t => t.id === taskId);
     
-    if (!task || task.status === newStatus) return;
+    if (!task) {
+      console.log('DragEnd: task not found', taskId);
+      return;
+    }
+    
+    if (task.status === newStatus) {
+      console.log('DragEnd: same status, skipping', newStatus);
+      return;
+    }
+    
+    console.log('DragEnd: updating status from', task.status, 'to', newStatus);
     
     // Use optimistic update - no await, immediate visual feedback
     const success = await updateTaskStatus(taskId, newStatus);
@@ -387,7 +401,10 @@ const Index = () => {
               {/* Both mobile and desktop use DnD context */}
                 <DndContext
                   sensors={sensors}
-                  collisionDetection={pointerWithin}
+                  collisionDetection={rectIntersection}
+                  measuring={{
+                    droppable: { strategy: MeasuringStrategy.Always }
+                  }}
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
                 >

@@ -38,19 +38,14 @@ export const DraggableTaskCard = memo(function DraggableTaskCard({ task, onClick
   };
 
   // Hide original when dragging - DragOverlay shows the dragged copy
+  // Only keep ref for DOM position, remove listeners/attributes to prevent conflicts
   if (isDragging) {
     return (
-      <Card 
+      <div 
         ref={setNodeRef}
-        style={style}
-        {...listeners}
-        {...attributes}
-        className={`opacity-30 border-dashed border-2 border-muted-foreground/30 bg-muted/20 p-2.5 touch-none overflow-hidden ${importanceStyles.borderClass}`}
-      >
-        <div className="invisible">
-          <h3 className="font-medium text-xs">{task.title}</h3>
-        </div>
-      </Card>
+        className="opacity-0 h-0 overflow-hidden pointer-events-none"
+        aria-hidden="true"
+      />
     );
   }
 
