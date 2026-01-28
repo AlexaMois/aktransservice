@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.task-reminder-cron]
 verify_jwt = false
+
+[functions.feedback]
+verify_jwt = false
