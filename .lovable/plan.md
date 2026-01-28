@@ -1,119 +1,75 @@
 
+## План исправления: Drag-and-Drop не обнаруживает цели
 
-## План исправления Drag-and-Drop на Kanban-доске
+### Диагностика
 
-### Проблема
-При перетаскивании карточки между колонками:
-1. Статус задачи не меняется (карточка возвращается в исходную позицию)
-2. Появляются визуальные дубликаты карточек
-
-### Анализ причин
-
-**Причина 1: Неправильная стратегия обнаружения столкновений**
-- Текущий код использует `pointerWithin` — срабатывает только когда курсор мыши находится внутри droppable-зоны
-- Если карточка визуально над колонкой, но курсор — чуть в стороне, drop не регистрируется
-
-**Причина 2: ScrollArea блокирует collision detection**
-- `ScrollArea` (Radix) создаёт внутренний viewport с `overflow: hidden`
-- Ref droppable-зоны находится на контейнере, но реальные расчёты rect происходят внутри viewport
-- Это приводит к неправильному определению границ колонки
-
-**Причина 3: Конфликт refs при isDragging**
-- В `DraggableTaskCard` при `isDragging=true` всё ещё передаются `listeners`, `attributes` и `ref` на placeholder-элемент
-- Это создаёт конфликт с `DragOverlay`, который показывает копию карточки
-
-### План исправления
-
-#### Шаг 1: Изменить стратегию collision detection
-Файл: `src/pages/Index.tsx`
-- Заменить `pointerWithin` на `rectIntersection` — срабатывает когда прямоугольники перекрываются
-- Добавить `MeasuringStrategy.Always` для постоянного пересчёта координат droppable-зон
-
-```text
-import { 
-  DndContext, 
-  rectIntersection, 
-  MeasuringStrategy,
-  ...
-} from '@dnd-kit/core';
-
-<DndContext
-  sensors={sensors}
-  collisionDetection={rectIntersection}
-  measuring={{
-    droppable: { strategy: MeasuringStrategy.Always }
-  }}
-  onDragStart={handleDragStart}
-  onDragEnd={handleDragEnd}
->
+Логи консоли показывают ключевую проблему:
+```
+DragEnd event: { activeId: "...", overId: undefined }
+DragEnd: no over target
 ```
 
-#### Шаг 2: Вынести droppable-зону из ScrollArea
-Файл: `src/components/DroppableKanbanColumn.tsx`
-- Сейчас `setNodeRef` на внешнем контейнере, но `ScrollArea` создаёт viewport внутри
-- Решение: сделать явное разделение — внешний контейнер для droppable, внутренний для скролла
-- Добавить `min-h-full` к внутреннему контейнеру задач для корректного hit-testing
+`overId` всегда `undefined` — это означает, что `dnd-kit` не находит ни одной droppable-зоны при отпускании карточки.
 
-```text
-// Структура:
-<div ref={setNodeRef} className="flex flex-col ... h-full">
-  <div className="header">...</div>
-  <ScrollArea className="flex-1">
-    <div className="flex flex-col gap-1.5 min-h-full">
-      {tasks.map(...)}
-    </div>
-  </ScrollArea>
-</div>
+### Корневая причина
+
+В `DraggableTaskCard.tsx` при `isDragging=true`:
+```jsx
+<div className="opacity-0 h-0 overflow-hidden pointer-events-none" />
 ```
 
-#### Шаг 3: Исправить DraggableTaskCard при isDragging
-Файл: `src/components/DraggableTaskCard.tsx`
-- Убрать `listeners`, `attributes` из placeholder — они не нужны, так как карточка уже "захвачена"
-- Сохранить только `ref` для поддержания DOM-позиции
-- Это устранит визуальные дубли и конфликты
+Проблема: `h-0` делает элемент нулевой высоты. Алгоритм `rectIntersection` использует прямоугольник перетаскиваемого элемента (`active.rect.current.translated`) для обнаружения пересечений. Если этот прямоугольник имеет размер 0×0, пересечений не находится!
+
+### Решение
+
+Сохранить размеры элемента при перетаскивании, но сделать его визуально невидимым:
 
 ```text
+Файл: src/components/DraggableTaskCard.tsx
+
+// Вместо h-0, использовать visibility: hidden
 if (isDragging) {
   return (
-    <div 
+    <Card 
       ref={setNodeRef}
-      className="opacity-0 h-0 overflow-hidden pointer-events-none"
-      aria-hidden="true"
-    />
+      style={style}
+      className={`invisible pointer-events-none border-border/50 bg-card p-2.5 
+        touch-none overflow-hidden ${importanceStyles.borderClass}`}
+    >
+      {/* Контент сохраняется для правильного размера */}
+      <div className="flex items-center gap-1 mb-1.5 flex-wrap">
+        <Badge>...</Badge>
+      </div>
+      <h3>{task.title}</h3>
+      <p>{task.summary}</p>
+    </Card>
   );
 }
 ```
 
-#### Шаг 4: Добавить debug-логирование (временно)
-Файл: `src/pages/Index.tsx`
-- Добавить console.log в handleDragEnd для отладки
-- После подтверждения работы — удалить
+### Изменения
 
-```text
-const handleDragEnd = async (event: DragEndEvent) => {
-  console.log('DragEnd event:', { 
-    activeId: event.active?.id, 
-    overId: event.over?.id 
-  });
-  // ... rest of handler
-};
-```
+**Файл: `src/components/DraggableTaskCard.tsx`**
+- Заменить `<div className="opacity-0 h-0 ...">` на `<Card className="invisible ...">`
+- Сохранить полную структуру контента карточки внутри placeholder
+- Использовать `invisible` (visibility: hidden) вместо `opacity-0 h-0`
+- Это сохраняет rect элемента для collision detection
 
-### Технические детали
+### Почему это работает
 
-**Почему `rectIntersection` лучше `pointerWithin`:**
-- `pointerWithin` — курсор должен быть внутри зоны
-- `rectIntersection` — прямоугольник перетаскиваемого элемента должен пересекаться с droppable-зоной
-- Для канбан-доски `rectIntersection` интуитивнее — карточка визуально над колонкой = drop работает
+| Свойство | `h-0` | `invisible` |
+|----------|-------|-------------|
+| Видимость | Нет | Нет |
+| Занимает место | Нет | Да |
+| Rect для dnd-kit | 0×0 (сломано!) | Нормальный размер |
+| Collision detection | Не работает | Работает ✓ |
 
-**Почему нужен `MeasuringStrategy.Always`:**
-- По умолчанию dnd-kit кеширует размеры droppable-зон
-- При скролле или ресайзе кеш устаревает
-- `Always` пересчитывает размеры при каждом движении — надёжнее, но чуть медленнее
+### Дополнительно
+
+Также добавлю `opacity-50` на placeholder чтобы показать "откуда" перетащили карточку — это даст лучший визуальный фидбек пользователю.
 
 ### Ожидаемый результат
-- Перетаскивание работает плавно во всех колонках
-- Статус обновляется сразу (оптимистичное обновление) и синхронизируется с сервером
-- Нет визуальных дублей карточек
-- Работает как на ПК (мышь), так и на мобильных устройствах (touch)
 
+- `overId` будет корректно определяться при drop
+- Карточки будут перетаскиваться между колонками
+- Статус будет меняться сразу (оптимистичное обновление)
