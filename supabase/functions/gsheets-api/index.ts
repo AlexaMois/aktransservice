@@ -778,10 +778,17 @@ Deno.serve(async (req) => {
             );
           }
           
-          // SECURITY: Only admin can update tasks (except possibly some fields in future)
-          if (user.role !== 'admin') {
+          // PERMISSION LOGIC:
+          // - Admin can update any task
+          // - Regular users can update status (drag-drop) for any task
+          // - Regular users can edit only their own tasks (author matches)
+          const isStatusOnlyUpdate = Object.keys(data).length === 1 && 'status' in data;
+          const isOwnTask = existingTask.author === user.name;
+          const canUpdate = user.role === 'admin' || isStatusOnlyUpdate || isOwnTask;
+          
+          if (!canUpdate) {
             return new Response(
-              JSON.stringify({ success: false, error: 'Только администратор может редактировать задачи' }),
+              JSON.stringify({ success: false, error: 'Вы можете редактировать только свои задачи' }),
               { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           }
