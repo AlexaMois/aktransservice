@@ -58,13 +58,23 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
   const userName = getUserName();
   const userIsAdmin = isAdmin();
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string;
+    summary: string;
+    description: string;
+    task_type: TaskType;
+    importance: ImportanceRating | null;
+    department: Department;
+    url: string;
+    input_data_description: string;
+    problem_description: string;
+  }>({
     title: '',
     summary: '',
     description: '',
     task_type: defaultTaskType,
-    importance: '' as ImportanceRating | '',
-    department: 'digitization_it' as Department,
+    importance: null,
+    department: 'digitization_it',
     url: '',
     input_data_description: '',
     problem_description: '',
@@ -101,7 +111,7 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
       summary: '',
       description: '',
       task_type: defaultTaskType,
-      importance: '',
+      importance: null,
       department: 'digitization_it',
       url: '',
       input_data_description: '',
