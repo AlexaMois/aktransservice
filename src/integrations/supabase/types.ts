@@ -188,6 +188,7 @@ export type Database = {
           result_before: string | null
           status: Database["public"]["Enums"]["task_status"]
           summary: string
+          task_scope: Database["public"]["Enums"]["task_scope"]
           task_type: Database["public"]["Enums"]["task_type"]
           title: string
           updated_at: string
@@ -214,6 +215,7 @@ export type Database = {
           result_before?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           summary: string
+          task_scope?: Database["public"]["Enums"]["task_scope"]
           task_type?: Database["public"]["Enums"]["task_type"]
           title: string
           updated_at?: string
@@ -240,6 +242,7 @@ export type Database = {
           result_before?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           summary?: string
+          task_scope?: Database["public"]["Enums"]["task_scope"]
           task_type?: Database["public"]["Enums"]["task_type"]
           title?: string
           updated_at?: string
@@ -302,6 +305,7 @@ export type Database = {
         | "financial"
       importance_rating: "critical" | "important" | "can_wait"
       task_priority: "high" | "medium" | "low"
+      task_scope: "digitization" | "personal"
       task_status: "ideas" | "planned" | "in-progress" | "completed" | "review"
       task_type: "idea" | "problem" | "task" | "announcement" | "question"
     }
@@ -443,6 +447,7 @@ export const Constants = {
       ],
       importance_rating: ["critical", "important", "can_wait"],
       task_priority: ["high", "medium", "low"],
+      task_scope: ["digitization", "personal"],
       task_status: ["ideas", "planned", "in-progress", "completed", "review"],
       task_type: ["idea", "problem", "task", "announcement", "question"],
     },
