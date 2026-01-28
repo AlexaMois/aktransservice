@@ -16,7 +16,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { Search, X, Plus, SlidersHorizontal } from 'lucide-react';
+import { Search, X, SlidersHorizontal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface SearchAndFiltersProps {
@@ -35,7 +35,6 @@ interface SearchAndFiltersProps {
   ownerFilter: string;
   onOwnerFilterChange: (owner: string) => void;
   owners: string[];
-  onAddClick: () => void;
   showOwnerFilter?: boolean;
 }
 
@@ -55,7 +54,6 @@ export function SearchAndFilters({
   ownerFilter,
   onOwnerFilterChange,
   owners,
-  onAddClick,
   showOwnerFilter = true,
 }: SearchAndFiltersProps) {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -189,20 +187,15 @@ export function SearchAndFilters({
     <div className="bg-card rounded-xl border border-border p-3 sm:p-4 shadow-sm">
       {/* Mobile layout */}
       <div className="flex flex-col gap-3 sm:hidden">
-        {/* Search and Add row */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Поиск..."
-              className="pl-10"
-            />
-          </div>
-          <Button onClick={onAddClick} size="icon" className="shrink-0">
-            <Plus className="h-5 w-5" />
-          </Button>
+        {/* Search row */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Поиск..."
+            className="pl-10"
+          />
         </div>
 
         {/* Filter button */}
@@ -326,12 +319,6 @@ export function SearchAndFilters({
             Сбросить
           </Button>
         )}
-
-        {/* Add button */}
-        <Button onClick={onAddClick} className="ml-auto">
-          <Plus className="h-4 w-4 mr-2" />
-          Добавить
-        </Button>
       </div>
     </div>
   );
