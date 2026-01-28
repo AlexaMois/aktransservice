@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { Task, TaskStatus } from '@/types/task';
 import { DraggableTaskCard } from './DraggableTaskCard';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Lightbulb, ListTodo } from 'lucide-react';
 
@@ -56,8 +57,7 @@ export const DroppableKanbanColumn = memo(function DroppableKanbanColumn({
   return (
     <div 
       ref={setNodeRef}
-      data-status={status}
-      className={`flex flex-col rounded-lg flex-1 min-w-0 h-full transition-colors duration-200
+      className={`flex flex-col rounded-lg flex-1 min-w-0 transition-colors duration-200
         ${isOver ? 'bg-primary/10 ring-2 ring-primary/30' : 'bg-accent/30'}
       `}
     >
@@ -72,8 +72,8 @@ export const DroppableKanbanColumn = memo(function DroppableKanbanColumn({
         </div>
       </div>
       
-      <div className="flex-1 overflow-auto p-1.5">
-        <div className="flex flex-col gap-1.5 min-h-full">
+      <ScrollArea className="flex-1 p-1.5">
+        <div className="flex flex-col gap-1.5 min-h-[100px]">
           {tasks.map((task) => (
             <DraggableTaskCard 
               key={task.id} 
@@ -103,7 +103,7 @@ export const DroppableKanbanColumn = memo(function DroppableKanbanColumn({
             </div>
           )}
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 });

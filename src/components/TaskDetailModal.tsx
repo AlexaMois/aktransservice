@@ -183,20 +183,22 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
   };
 
   const handleSaveLog = async () => {
-    if (!onUpdateTask) {
-      toast.error('Сохранение недоступно');
-      return;
-    }
-    
     setSavingLog(true);
     try {
-      const updatedTask = await onUpdateTask(task.id, { execution_log: executionLog });
-      
+      const { data, error } = await supabase
+        .from('tasks')
+        .update({ execution_log: executionLog })
+        .eq('id', task.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
       setIsEditingLog(false);
       toast.success('Лог сохранён');
       
-      if (onTaskUpdate) {
-        onTaskUpdate(updatedTask);
+      if (onTaskUpdate && data) {
+        onTaskUpdate(data as Task);
       }
     } catch (error) {
       console.error('Error saving log:', error);

@@ -33,41 +33,9 @@ export const DraggableTaskCard = memo(function DraggableTaskCard({ task, onClick
 
   const importanceStyles = getImportanceStyles(task.importance);
 
-  // Apply transform to the dragged element itself (most reliable with collision detection)
-  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
-
-  if (isDragging) {
-    return (
-      <Card 
-        ref={setNodeRef}
-        style={style}
-        className={`opacity-30 pointer-events-none border-dashed border-2 border-border bg-muted/30 p-2.5 touch-none overflow-hidden ${importanceStyles.borderClass}`}
-        aria-hidden="true"
-      >
-        <div className="flex items-center gap-1 mb-1.5 flex-wrap">
-          <Badge variant="outline" className={`text-[10px] gap-0.5 px-1.5 py-0 h-5 ${TASK_TYPE_COLORS[task.task_type]}`}>
-            <TaskTypeIcon type={task.task_type} />
-            {TASK_TYPE_LABELS[task.task_type]}
-          </Badge>
-          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 font-bold ${importanceStyles.badgeClass}`}>
-            {importanceStyles.label}
-          </Badge>
-        </div>
-        <h3 
-          className="font-medium text-xs leading-tight text-muted-foreground mb-1 break-words"
-          style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', hyphens: 'auto' }}
-        >
-          {task.title}
-        </h3>
-        <p 
-          className="text-[10px] text-muted-foreground/70 break-words"
-          style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', hyphens: 'auto' }}
-        >
-          {task.summary}
-        </p>
-      </Card>
-    );
-  }
+  const style = {
+    transform: CSS.Translate.toString(transform),
+  };
 
   return (
     <Card 
@@ -76,11 +44,13 @@ export const DraggableTaskCard = memo(function DraggableTaskCard({ task, onClick
       {...listeners}
       {...attributes}
       className={`cursor-grab transition-all duration-200 border-border/50 bg-card p-2.5 touch-none overflow-hidden ${importanceStyles.borderClass}
-        hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]
+        ${isDragging ? 'opacity-50 shadow-lg scale-105 z-50' : 'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]'}
         ${isSyncing ? 'opacity-70' : ''}
       `}
       onClick={(e) => {
-        onClick();
+        if (!isDragging) {
+          onClick();
+        }
       }}
     >
       <div className="flex items-center gap-1 mb-1.5 flex-wrap">

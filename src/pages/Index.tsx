@@ -5,7 +5,7 @@ import { useDragOptimistic } from '@/hooks/useDragOptimistic';
 import { useAnnouncementReadStatus, hasUserId } from '@/hooks/useAnnouncementReadStatus';
 import { isAuthenticated, clearSession, isAdmin } from '@/lib/auth/session';
 import { useSwipe } from '@/hooks/useSwipe';
-import { DndContext, DragEndEvent, rectIntersection, useSensor, useSensors, PointerSensor, TouchSensor, MeasuringStrategy } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverlay, pointerWithin, useSensor, useSensors, PointerSensor, TouchSensor } from '@dnd-kit/core';
 import { Header } from '@/components/Header';
 import { SearchAndFilters } from '@/components/SearchAndFilters';
 import { KanbanColumn } from '@/components/KanbanColumn';
@@ -22,7 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Map, Megaphone, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
-import { MobileDraggableTaskList } from '@/components/MobileDraggableTaskList';
+import { TaskCard } from '@/components/TaskCard';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -269,30 +269,16 @@ const Index = () => {
 
   // Handle drag end - update task status with optimistic update
   const handleDragEnd = async (event: DragEndEvent) => {
-    console.log('DragEnd event:', { activeId: event.active?.id, overId: event.over?.id });
     setActiveDragId(null);
     const { active, over } = event;
     
-    if (!over) {
-      console.log('DragEnd: no over target');
-      return;
-    }
+    if (!over) return;
     
     const taskId = active.id as string;
     const newStatus = over.id as TaskStatus;
     const task = tasksWithOptimistic.find(t => t.id === taskId);
     
-    if (!task) {
-      console.log('DragEnd: task not found', taskId);
-      return;
-    }
-    
-    if (task.status === newStatus) {
-      console.log('DragEnd: same status, skipping', newStatus);
-      return;
-    }
-    
-    console.log('DragEnd: updating status from', task.status, 'to', newStatus);
+    if (!task || task.status === newStatus) return;
     
     // Use optimistic update - no await, immediate visual feedback
     const success = await updateTaskStatus(taskId, newStatus);
@@ -308,7 +294,7 @@ const Index = () => {
     setActiveDragId(event.active.id as string);
   };
 
-  // activeDragId is used for mobile drop-zones UI while dragging
+  const activeDragTask = activeDragId ? tasksWithOptimistic.find(t => t.id === activeDragId) : null;
 
   // Show login screen if not authenticated
   if (!isLoggedIn) {
@@ -397,79 +383,102 @@ const Index = () => {
               </div>
             ) : (
               <>
-              {/* Both mobile and desktop use DnD context */}
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={rectIntersection}
-                  measuring={{
-                    droppable: { strategy: MeasuringStrategy.Always }
-                  }}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                >
-                  {/* Mobile view - single column with swipe and drag support */}
-                  <div className="block md:hidden">
-                    {/* Status navigation */}
-                    <div className="mb-4 flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={goToPrevStatus}
-                        disabled={currentStatusIndex === 0}
-                        className="shrink-0"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      
-                      <div className="flex-1 text-center">
-                        <div className="font-medium text-foreground">
-                          {STATUS_LABELS[mobileStatusFilter]}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {tasksByStatus[mobileStatusFilter].length} задач • Удержите карточку для перемещения
-                        </div>
+                {/* Mobile view - single column with swipe */}
+                <div className="block md:hidden">
+                  {/* Status navigation */}
+                  <div className="mb-4 flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={goToPrevStatus}
+                      disabled={currentStatusIndex === 0}
+                      className="shrink-0"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    
+                    <div className="flex-1 text-center">
+                      <div className="font-medium text-foreground">
+                        {STATUS_LABELS[mobileStatusFilter]}
                       </div>
-                      
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={goToNextStatus}
-                        disabled={currentStatusIndex === STATUSES.length - 1}
-                        className="shrink-0"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    {/* Status dots indicator */}
-                    <div className="flex justify-center gap-1.5 mb-4">
-                      {STATUSES.map((status, index) => (
-                        <button
-                          key={status}
-                          onClick={() => setMobileStatusFilter(status)}
-                          className={`h-2 rounded-full transition-all ${
-                            index === currentStatusIndex 
-                              ? 'w-6 bg-primary' 
-                              : 'w-2 bg-muted-foreground/30'
-                          }`}
-                          aria-label={STATUS_LABELS[status]}
-                        />
-                      ))}
+                      <div className="text-xs text-muted-foreground">
+                        {tasksByStatus[mobileStatusFilter].length} задач • Свайп ← →
+                      </div>
                     </div>
                     
-                    {/* Draggable task list with drop zone */}
-                    <MobileDraggableTaskList
-                      status={mobileStatusFilter}
-                      tasks={tasksByStatus[mobileStatusFilter]}
-                      onTaskClick={setSelectedTask}
-                      onAddClick={(type) => handleOpenAddModal(type)}
-                      isTaskSyncing={isTaskSyncing}
-                      isDragging={!!activeDragId}
-                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={goToNextStatus}
+                      disabled={currentStatusIndex === STATUSES.length - 1}
+                      className="shrink-0"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
                   </div>
 
-                  {/* Desktop view - kanban with drag and drop */}
-                  <div className="hidden md:block flex-1 min-h-0">
+                  {/* Status dots indicator */}
+                  <div className="flex justify-center gap-1.5 mb-4">
+                    {STATUSES.map((status, index) => (
+                      <button
+                        key={status}
+                        onClick={() => setMobileStatusFilter(status)}
+                        className={`h-2 rounded-full transition-all ${
+                          index === currentStatusIndex 
+                            ? 'w-6 bg-primary' 
+                            : 'w-2 bg-muted-foreground/30'
+                        }`}
+                        aria-label={STATUS_LABELS[status]}
+                      />
+                    ))}
+                  </div>
+                  
+                  {/* Swipeable task list */}
+                  <div 
+                    className="space-y-3 min-h-[200px]"
+                    {...swipeHandlers}
+                  >
+                    {tasksByStatus[mobileStatusFilter].map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        onClick={() => setSelectedTask(task)}
+                      />
+                    ))}
+                    {tasksByStatus[mobileStatusFilter].length === 0 && (
+                      <div className="text-center py-8">
+                        {mobileStatusFilter === 'ideas' ? (
+                          <Button 
+                            variant="outline" 
+                            onClick={() => handleOpenAddModal('idea')}
+                            className="gap-2"
+                          >
+                            Добавить предложение
+                          </Button>
+                        ) : mobileStatusFilter === 'planned' ? (
+                          <Button 
+                            variant="outline" 
+                            onClick={() => handleOpenAddModal('task')}
+                            className="gap-2"
+                          >
+                            Добавить задачу
+                          </Button>
+                        ) : (
+                          <p className="text-muted-foreground text-sm">Нет задач в этом статусе</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Desktop view - kanban with drag and drop */}
+                <div className="hidden md:block flex-1 min-h-0">
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={pointerWithin}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                  >
                     <div className="h-[calc(100vh-280px)] flex gap-2">
                       {STATUSES.map((status) => (
                         <DroppableKanbanColumn
@@ -482,9 +491,13 @@ const Index = () => {
                         />
                       ))}
                     </div>
-                  </div>
-                  
-                </DndContext>
+                    <DragOverlay>
+                      {activeDragTask ? (
+                        <TaskCard task={activeDragTask} onClick={() => {}} />
+                      ) : null}
+                    </DragOverlay>
+                  </DndContext>
+                </div>
               </>
             )}
           </TabsContent>
