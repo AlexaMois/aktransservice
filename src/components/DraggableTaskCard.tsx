@@ -43,7 +43,7 @@ export const DraggableTaskCard = memo(function DraggableTaskCard({ task, onClick
       style={style}
       {...listeners}
       {...attributes}
-      className={`cursor-grab transition-all duration-200 border-border/50 bg-card p-2.5 touch-none overflow-hidden ${importanceStyles.borderClass}
+      className={`cursor-grab transition-all duration-200 border-border/50 bg-card p-2.5 overflow-hidden ${importanceStyles.borderClass}
         ${isDragging ? 'opacity-50 shadow-lg scale-105 z-50' : 'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]'}
         ${isSyncing ? 'opacity-70' : ''}
       `}

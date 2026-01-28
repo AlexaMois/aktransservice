@@ -16,6 +16,7 @@ import {
   TouchSensor,
 } from "@dnd-kit/core";
 import { Header } from "@/components/Header";
+import { MobileDropZones } from "@/components/MobileDropZones";
 import { SearchAndFilters } from "@/components/SearchAndFilters";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { DroppableKanbanColumn } from "@/components/DroppableKanbanColumn";
@@ -25,6 +26,7 @@ import { AnnouncementsList } from "@/components/AnnouncementsList";
 import { InProgressView } from "@/components/InProgressView";
 // AdditionalSectionsPage removed - tab no longer displayed
 import { MigrationSetup } from "@/components/MigrationSetup";
+import { DraggableTaskCard } from "@/components/DraggableTaskCard";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { LoginScreen } from "@/components/LoginScreen";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -403,73 +405,100 @@ const Index = () => {
               </div>
             ) : (
               <>
-                {/* Mobile view - single column with swipe */}
+                {/* Mobile view - single column with swipe and drag-and-drop */}
                 <div className="block md:hidden">
-                  {/* Status navigation */}
-                  <div className="mb-4 flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={goToPrevStatus}
-                      disabled={currentStatusIndex === 0}
-                      className="shrink-0"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={pointerWithin}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                  >
+                    {/* Mobile drop zones - appear when dragging */}
+                    <MobileDropZones 
+                      activeDragId={activeDragId} 
+                      currentStatus={activeDragTask?.status}
+                    />
 
-                    <div className="flex-1 text-center">
-                      <div className="font-medium text-foreground">{STATUS_LABELS[mobileStatusFilter]}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {tasksByStatus[mobileStatusFilter].length} задач • Свайп ← →
+                    {/* Status navigation */}
+                    <div className={`mb-4 flex items-center gap-2 transition-all ${activeDragId ? 'mt-20' : ''}`}>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={goToPrevStatus}
+                        disabled={currentStatusIndex === 0 || !!activeDragId}
+                        className="shrink-0"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+
+                      <div className="flex-1 text-center">
+                        <div className="font-medium text-foreground">{STATUS_LABELS[mobileStatusFilter]}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {tasksByStatus[mobileStatusFilter].length} задач • {activeDragId ? 'Перетащите наверх' : 'Свайп ← →'}
+                        </div>
                       </div>
+
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={goToNextStatus}
+                        disabled={currentStatusIndex === STATUSES.length - 1 || !!activeDragId}
+                        className="shrink-0"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
                     </div>
 
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={goToNextStatus}
-                      disabled={currentStatusIndex === STATUSES.length - 1}
-                      className="shrink-0"
+                    {/* Status dots indicator */}
+                    <div className="flex justify-center gap-1.5 mb-4">
+                      {STATUSES.map((status, index) => (
+                        <button
+                          key={status}
+                          onClick={() => !activeDragId && setMobileStatusFilter(status)}
+                          disabled={!!activeDragId}
+                          className={`h-2 rounded-full transition-all ${
+                            index === currentStatusIndex ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30"
+                          } ${activeDragId ? 'opacity-50' : ''}`}
+                          aria-label={STATUS_LABELS[status]}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Swipeable task list with draggable cards */}
+                    <div 
+                      className="space-y-3 min-h-[200px]" 
+                      {...(activeDragId ? {} : swipeHandlers)}
                     >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
+                      {tasksByStatus[mobileStatusFilter].map((task) => (
+                        <DraggableTaskCard 
+                          key={task.id} 
+                          task={task} 
+                          onClick={() => setSelectedTask(task)}
+                          isSyncing={isTaskSyncing(task.id)}
+                        />
+                      ))}
+                      {tasksByStatus[mobileStatusFilter].length === 0 && (
+                        <div className="text-center py-8">
+                          {mobileStatusFilter === "ideas" ? (
+                            <Button variant="outline" onClick={() => handleOpenAddModal("idea")} className="gap-2">
+                              Добавить предложение
+                            </Button>
+                          ) : mobileStatusFilter === "planned" ? (
+                            <Button variant="outline" onClick={() => handleOpenAddModal("task")} className="gap-2">
+                              Добавить задачу
+                            </Button>
+                          ) : (
+                            <p className="text-muted-foreground text-sm">Нет задач в этом статусе</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Status dots indicator */}
-                  <div className="flex justify-center gap-1.5 mb-4">
-                    {STATUSES.map((status, index) => (
-                      <button
-                        key={status}
-                        onClick={() => setMobileStatusFilter(status)}
-                        className={`h-2 rounded-full transition-all ${
-                          index === currentStatusIndex ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30"
-                        }`}
-                        aria-label={STATUS_LABELS[status]}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Swipeable task list */}
-                  <div className="space-y-3 min-h-[200px]" {...swipeHandlers}>
-                    {tasksByStatus[mobileStatusFilter].map((task) => (
-                      <TaskCard key={task.id} task={task} onClick={() => setSelectedTask(task)} />
-                    ))}
-                    {tasksByStatus[mobileStatusFilter].length === 0 && (
-                      <div className="text-center py-8">
-                        {mobileStatusFilter === "ideas" ? (
-                          <Button variant="outline" onClick={() => handleOpenAddModal("idea")} className="gap-2">
-                            Добавить предложение
-                          </Button>
-                        ) : mobileStatusFilter === "planned" ? (
-                          <Button variant="outline" onClick={() => handleOpenAddModal("task")} className="gap-2">
-                            Добавить задачу
-                          </Button>
-                        ) : (
-                          <p className="text-muted-foreground text-sm">Нет задач в этом статусе</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                    {/* Drag overlay for mobile */}
+                    <DragOverlay>
+                      {activeDragTask ? <TaskCard task={activeDragTask} onClick={() => {}} /> : null}
+                    </DragOverlay>
+                  </DndContext>
                 </div>
 
                 {/* Desktop view - kanban with drag and drop */}
