@@ -58,7 +58,17 @@ const TRANSLIT_MAP: Record<string, string> = {
  * Example: "Александра Моисеева" -> "Tasks_Alexandra_Moiseeva"
  */
 function getPersonalSheetName(userName: string): string {
-  const transliterated = userName.toLowerCase()
+  // Handle empty or invalid names
+  if (!userName || typeof userName !== 'string') {
+    return 'Tasks_Unknown';
+  }
+  
+  const trimmed = userName.trim();
+  if (!trimmed) {
+    return 'Tasks_Unknown';
+  }
+  
+  const transliterated = trimmed.toLowerCase()
     .split('')
     .map(char => TRANSLIT_MAP[char] || char)
     .join('')
@@ -66,13 +76,19 @@ function getPersonalSheetName(userName: string): string {
     .replace(/_+/g, '_')
     .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
   
+  // Handle edge case where transliteration results in empty string
+  if (!transliterated) {
+    return 'Tasks_Unknown';
+  }
+  
   // Capitalize each word
   const formatted = transliterated
     .split('_')
+    .filter(word => word.length > 0)
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join('_');
   
-  return `Tasks_${formatted}`;
+  return formatted ? `Tasks_${formatted}` : 'Tasks_Unknown';
 }
 
 interface ServiceAccountKey {

@@ -12,10 +12,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Task, TaskStatus, TaskComment, TaskScope } from '@/entities/task';
 import { Announcement } from '@/types/task';
-import { gsheetsAnnouncementsApi, gsheetsCommentsApi, isGSheetsMode } from '@/lib/api/gsheets';
-import { supabase } from '@/integrations/supabase/client';
+import { gsheetsAnnouncementsApi, gsheetsCommentsApi } from '@/lib/api/gsheets';
 import { useSyncStatus } from './useSyncStatus';
-import { mapToAnnouncement } from '@/lib/typeGuards';
 import * as taskApi from '@/entities/task/api';
 
 // Polling interval in milliseconds (30 seconds by default)
@@ -145,38 +143,25 @@ export function useGSheetsTasks(
   };
 }
 
+/**
+ * Hook for announcements - Google Sheets only
+ */
 export function useGSheetsAnnouncements() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
-  const gsheetsEnabled = isGSheetsMode();
 
   const fetchAnnouncements = useCallback(async () => {
     setLoading(true);
     try {
-      if (gsheetsEnabled) {
-        const data = await gsheetsAnnouncementsApi.list();
-        setAnnouncements(data);
-      } else {
-        const { data, error } = await supabase
-          .from('announcements')
-          .select('*')
-          .order('published_at', { ascending: false });
-
-        if (error) throw error;
-        if (data) {
-          const mapped = data.map(row => mapToAnnouncement(row as Record<string, unknown>));
-          setAnnouncements(mapped);
-        } else {
-          setAnnouncements([]);
-        }
-      }
+      const data = await gsheetsAnnouncementsApi.list();
+      setAnnouncements(data);
     } catch (error) {
       console.error('Error fetching announcements:', error);
       setAnnouncements([]);
     } finally {
       setLoading(false);
     }
-  }, [gsheetsEnabled]);
+  }, []);
 
   useEffect(() => {
     fetchAnnouncements();
@@ -185,10 +170,12 @@ export function useGSheetsAnnouncements() {
   return { announcements, loading, refetch: fetchAnnouncements };
 }
 
+/**
+ * Hook for task comments - Google Sheets only
+ */
 export function useGSheetsComments(taskId: string) {
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [loading, setLoading] = useState(true);
-  const gsheetsEnabled = isGSheetsMode();
 
   const fetchComments = useCallback(async () => {
     if (!taskId) {
@@ -197,37 +184,15 @@ export function useGSheetsComments(taskId: string) {
     }
     setLoading(true);
     try {
-      if (gsheetsEnabled) {
-        const data = await gsheetsCommentsApi.list(taskId);
-        setComments(data);
-      } else {
-        const { data, error } = await supabase
-          .from('task_comments')
-          .select('*')
-          .eq('task_id', taskId)
-          .order('created_at', { ascending: true });
-
-        if (error) throw error;
-        if (data) {
-          const mapped: TaskComment[] = data.map(item => ({
-            id: item.id,
-            task_id: item.task_id,
-            author: item.author,
-            text: item.text,
-            created_at: item.created_at,
-          }));
-          setComments(mapped);
-        } else {
-          setComments([]);
-        }
-      }
+      const data = await gsheetsCommentsApi.list(taskId);
+      setComments(data);
     } catch (error) {
       console.error('Error fetching comments:', error);
       setComments([]);
     } finally {
       setLoading(false);
     }
-  }, [taskId, gsheetsEnabled]);
+  }, [taskId]);
 
   useEffect(() => {
     fetchComments();
@@ -235,39 +200,13 @@ export function useGSheetsComments(taskId: string) {
 
   const addComment = async (author: string, text: string): Promise<TaskComment> => {
     try {
-      if (gsheetsEnabled) {
-        // Note: author is now set by server from session
-        const newComment = await gsheetsCommentsApi.create({
-          task_id: taskId,
-          text,
-        });
-        setComments((prev) => [...prev, newComment]);
-        return newComment;
-      } else {
-        const { data, error } = await supabase
-          .from('task_comments')
-          .insert({
-            task_id: taskId,
-            author: author || 'Аноним',
-            text,
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        if (!data) throw new Error('No data returned from insert');
-
-        const newComment: TaskComment = {
-          id: data.id,
-          task_id: data.task_id,
-          author: data.author,
-          text: data.text,
-          created_at: data.created_at,
-        };
-
-        setComments((prev) => [...prev, newComment]);
-        return newComment;
-      }
+      // Note: author is now set by server from session
+      const newComment = await gsheetsCommentsApi.create({
+        task_id: taskId,
+        text,
+      });
+      setComments((prev) => [...prev, newComment]);
+      return newComment;
     } catch (error) {
       console.error('Error adding comment:', error);
       throw error;

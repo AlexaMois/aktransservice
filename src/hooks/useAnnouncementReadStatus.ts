@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Task } from '@/entities/task';
-import { gsheetsReadStatusApi, ReadStatus, isGSheetsMode } from '@/lib/api/gsheets';
+import { gsheetsReadStatusApi, ReadStatus } from '@/lib/api/gsheets';
 import { getSession, isAuthenticated } from '@/lib/auth/session';
 
 /**
@@ -28,11 +28,10 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
   const [readStatuses, setReadStatuses] = useState<ReadStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const userId = getUserId();
-  const gsheetsEnabled = isGSheetsMode();
 
   // Fetch read statuses from Google Sheets
   const fetchReadStatuses = useCallback(async () => {
-    if (!userId || !gsheetsEnabled) {
+    if (!userId) {
       setLoading(false);
       return;
     }
@@ -45,7 +44,7 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
     } finally {
       setLoading(false);
     }
-  }, [userId, gsheetsEnabled]);
+  }, [userId]);
 
   useEffect(() => {
     fetchReadStatuses();
@@ -67,7 +66,7 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
 
   // Mark all announcements as read
   const markAllAsRead = useCallback(async () => {
-    if (!userId || !gsheetsEnabled) return;
+    if (!userId) return;
 
     const unreadIds = announcements
       .filter((a) => !readAnnouncementIds.has(a.id))
@@ -81,7 +80,7 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
     } catch (error) {
       console.error('Error marking announcements as read:', error);
     }
-  }, [userId, gsheetsEnabled, announcements, readAnnouncementIds]);
+  }, [userId, announcements, readAnnouncementIds]);
 
   // Check if a specific announcement is unread
   const isUnread = useCallback((announcement: Task) => {

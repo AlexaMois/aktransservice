@@ -25,7 +25,7 @@ import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { AddTaskModal } from "@/components/AddTaskModal";
 import { AnnouncementsList } from "@/components/AnnouncementsList";
 import { InProgressView } from "@/components/InProgressView";
-import { MigrationSetup } from "@/components/MigrationSetup";
+
 import { DraggableTaskCard } from "@/components/DraggableTaskCard";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { LoginScreen } from "@/components/LoginScreen";
@@ -53,7 +53,7 @@ const Index = () => {
   const [defaultTaskType, setDefaultTaskType] = useState<TaskType>("idea");
   const [activeTab, setActiveTab] = useState("roadmap");
   const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus>("ideas");
-  const [showMigration, setShowMigration] = useState(false);
+  
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const currentUserId = getUserId();
 
@@ -358,23 +358,6 @@ const Index = () => {
   // Show login screen if not authenticated
   if (!isLoggedIn) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
-  }
-
-  // Show migration setup if not configured
-  if (showMigration) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header onLogout={handleLogout} />
-        <main className="flex-1 container mx-auto px-3 sm:px-4 py-8">
-          <MigrationSetup
-            onComplete={() => {
-              setShowMigration(false);
-              refetch();
-            }}
-          />
-        </main>
-      </div>
-    );
   }
 
   return (

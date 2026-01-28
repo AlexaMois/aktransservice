@@ -1,20 +1,7 @@
-import { Task, TaskComment } from '@/entities/task';
+import { Task, TaskComment, TaskScope } from '@/entities/task';
 import { Announcement } from '@/types/task';
 import { clearSession, getSession } from '@/lib/auth/session';
 import { edgeFetch, base64UrlEncodeUtf8 } from '@/shared/api/edgeFetch';
-
-// Google Sheets mode is now always enabled since we have GOOGLE_SHEETS_ID secret configured
-export const isGSheetsMode = () => {
-  return true;
-};
-
-export const getGSheetsId = () => {
-  return localStorage.getItem('GOOGLE_SHEETS_ID');
-};
-
-export const setGSheetsId = (id: string) => {
-  localStorage.setItem('GOOGLE_SHEETS_ID', id);
-};
 
 interface GSheetsAPIResponse<T = unknown> {
   success: boolean;
@@ -79,7 +66,7 @@ async function callGSheetsAPI<T = unknown>(
 
 // Tasks API - supports both digitization (Tasks sheet) and personal sheets
 export const gsheetsTasksApi = {
-  async list(taskScope: 'digitization' | 'personal' = 'digitization'): Promise<Task[]> {
+  async list(taskScope: TaskScope = 'digitization'): Promise<Task[]> {
     const data = await callGSheetsAPI<Task[]>('list', 'tasks', { task_scope: taskScope });
     return data.sort((a, b) => 
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -92,7 +79,7 @@ export const gsheetsTasksApi = {
     return callGSheetsAPI<Task>('create', 'tasks', task as unknown as Record<string, unknown>);
   },
   
-  async update(id: string, updates: Partial<Task>, taskScope: 'digitization' | 'personal' = 'digitization'): Promise<Task> {
+  async update(id: string, updates: Partial<Task>, taskScope: TaskScope = 'digitization'): Promise<Task> {
     // Note: author cannot be changed by client
     // task_scope determines which sheet to update
     return callGSheetsAPI<Task>('update', 'tasks', { 
@@ -101,7 +88,7 @@ export const gsheetsTasksApi = {
     } as unknown as Record<string, unknown>, id);
   },
   
-  async delete(id: string, taskScope: 'digitization' | 'personal' = 'digitization'): Promise<void> {
+  async delete(id: string, taskScope: TaskScope = 'digitization'): Promise<void> {
     await callGSheetsAPI<void>('delete', 'tasks', { task_scope: taskScope }, id);
   },
 };
@@ -175,9 +162,6 @@ export async function initGoogleSheets(existingTasks: Task[], existingAnnounceme
   if (!result.success) {
     throw new Error(result.error || 'Failed to initialize Google Sheets');
   }
-  
-  // Save the spreadsheet ID for future use
-  setGSheetsId(result.spreadsheetId);
   
   return result.spreadsheetUrl;
 }

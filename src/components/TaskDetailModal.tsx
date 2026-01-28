@@ -1,9 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Task, TaskStatus, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS, IMPORTANCE_LABELS, DEPARTMENT_LABELS } from '@/entities/task';
-import { useTaskComments } from '@/hooks/useTasks';
-import { supabase } from '@/integrations/supabase/client';
+import { useGSheetsComments } from '@/hooks/useGSheetsTasks';
 import { isAdmin } from '@/lib/auth/session';
-import { mapToTask } from '@/lib/typeGuards';
 import { formatDateSafe } from '@/lib/utils';
 import {
   Dialog,
@@ -77,7 +75,7 @@ const TaskTypeIcon = ({ type }: { type: Task['task_type'] }) => {
 export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpdate, onUpdateTask, onDeleteTask }: TaskDetailModalProps) {
   // Early return if no task - hooks must be called unconditionally
   const taskId = task?.id ?? '';
-  const { comments, loading: commentsLoading, addComment } = useTaskComments(taskId);
+  const { comments, loading: commentsLoading, addComment } = useGSheetsComments(taskId);
   const [commentAuthor, setCommentAuthor] = useState('');
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
@@ -202,25 +200,20 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
     // Prevent double-click / race conditions
     if (savingLog) return;
     
+    // Require onUpdateTask prop to save
+    if (!onUpdateTask) {
+      toast.error('Ошибка: функция обновления недоступна');
+      return;
+    }
+    
     setSavingLog(true);
     try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .update({ execution_log: executionLog })
-        .eq('id', task.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      if (!data) {
-        throw new Error('No data returned from update');
-      }
+      const updatedTask = await onUpdateTask(task.id, { execution_log: executionLog });
 
       setIsEditingLog(false);
       toast.success('Лог сохранён');
       
       if (onTaskUpdate) {
-        const updatedTask = mapToTask(data as Record<string, unknown>);
         onTaskUpdate(updatedTask);
       }
     } catch (error) {
