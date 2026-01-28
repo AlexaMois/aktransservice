@@ -5,9 +5,12 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Shield, CheckCircle, AlertCircle } from 'lucide-react';
+import { edgeFetch } from '@/shared/api/edgeFetch';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+interface SeedResponse {
+  success: boolean;
+  error?: string;
+}
 
 export default function SetupAdmin() {
   const [secretKey, setSecretKey] = useState('');
@@ -41,11 +44,9 @@ export default function SetupAdmin() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/gsheets-api`, {
+      const response = await edgeFetch('/gsheets-api', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
           'X-App-Secret-Key': secretKey.trim(),
         },
         body: JSON.stringify({
@@ -59,7 +60,15 @@ export default function SetupAdmin() {
         }),
       });
 
-      const result = await response.json();
+      const text = await response.text();
+      let result: SeedResponse;
+      
+      try {
+        result = text ? JSON.parse(text) : { success: false };
+      } catch {
+        setError('Ошибка сервера. Попробуйте обновить страницу.');
+        return;
+      }
 
       if (!result.success) {
         if (response.status === 409) {

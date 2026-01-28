@@ -51,8 +51,9 @@ export async function edgeFetch(
   // Get access token (user session or anon key)
   const accessToken = await getAccessToken();
 
-  // Build headers
+  // Build headers - always include apikey, Authorization uses session token or anon key
   const finalHeaders: Record<string, string> = {
+    'apikey': SUPABASE_ANON_KEY,
     'Authorization': `Bearer ${accessToken}`,
     ...headers,
   };
