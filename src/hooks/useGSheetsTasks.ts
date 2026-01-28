@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Task, TaskStatus, Announcement, TaskComment } from '@/types/task';
-import { gsheetsTasksApi, gsheetsAnnouncementsApi, gsheetsCommentsApi, isGSheetsMode } from '@/lib/api/gsheets';
+import { gsheetsAnnouncementsApi, gsheetsCommentsApi, isGSheetsMode } from '@/lib/api/gsheets';
 import { supabase } from '@/integrations/supabase/client';
-import { useSyncStatus, SyncStatus } from './useSyncStatus';
+import { useSyncStatus } from './useSyncStatus';
+import * as taskApi from '@/entities/task/api';
 
 // Polling interval in milliseconds (30 seconds by default)
 const DEFAULT_POLLING_INTERVAL = 30000;
@@ -36,24 +37,8 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
       setLoading(true);
     }
     try {
-      if (gsheetsEnabled) {
-        const data = await gsheetsTasksApi.list();
-        setTasks(data);
-      } else {
-        // Fallback to Supabase
-        const { data, error } = await supabase
-          .from('tasks')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        
-        const mappedTasks = (data || []).map(task => ({
-          ...task,
-          summary: task.summary || task.description || '',
-        })) as Task[];
-        setTasks(mappedTasks);
-      }
+      const data = await taskApi.fetchTasks();
+      setTasks(data);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       throw error; // Re-throw for sync status tracking
@@ -61,7 +46,7 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
       setLoading(false);
       isInitialLoad.current = false;
     }
-  }, [enabled, gsheetsEnabled]);
+  }, [enabled]);
 
   // Set up sync callback for polling
   useEffect(() => {
@@ -76,33 +61,9 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
 
   const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'status'>) => {
     try {
-      if (gsheetsEnabled) {
-        const newTask = await gsheetsTasksApi.create({
-          ...task,
-          status: 'ideas' as TaskStatus,
-        });
-        setTasks((prev) => [newTask, ...prev]);
-        return newTask;
-      } else {
-        const { data, error } = await supabase
-          .from('tasks')
-          .insert({
-            ...task,
-            status: 'ideas',
-          } as any)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        const newTask = {
-          ...data,
-          summary: data.summary || data.description || '',
-        } as Task;
-        
-        setTasks((prev) => [newTask, ...prev]);
-        return newTask;
-      }
+      const newTask = await taskApi.createTask(task);
+      setTasks((prev) => [newTask, ...prev]);
+      return newTask;
     } catch (error) {
       console.error('Error adding task:', error);
       throw error;
@@ -111,28 +72,9 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
 
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
     try {
-      if (gsheetsEnabled) {
-        const updatedTask = await gsheetsTasksApi.update(taskId, updates);
-        setTasks((prev) => prev.map((t) => (t.id === taskId ? updatedTask : t)));
-        return updatedTask;
-      } else {
-        const { data, error } = await supabase
-          .from('tasks')
-          .update(updates as any)
-          .eq('id', taskId)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        const updatedTask = {
-          ...data,
-          summary: data.summary || data.description || '',
-        } as Task;
-
-        setTasks((prev) => prev.map((t) => (t.id === taskId ? updatedTask : t)));
-        return updatedTask;
-      }
+      const updatedTask = await taskApi.updateTask(taskId, updates);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updatedTask : t)));
+      return updatedTask;
     } catch (error) {
       console.error('Error updating task:', error);
       throw error;
@@ -141,18 +83,8 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
 
   const deleteTask = async (taskId: string) => {
     try {
-      if (gsheetsEnabled) {
-        await gsheetsTasksApi.delete(taskId);
-        setTasks((prev) => prev.filter((t) => t.id !== taskId));
-      } else {
-        const { error } = await supabase
-          .from('tasks')
-          .delete()
-          .eq('id', taskId);
-
-        if (error) throw error;
-        setTasks((prev) => prev.filter((t) => t.id !== taskId));
-      }
+      await taskApi.deleteTask(taskId);
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
     } catch (error) {
       console.error('Error deleting task:', error);
       throw error;
