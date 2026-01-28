@@ -23,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Map, Megaphone, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TaskCard } from '@/components/TaskCard';
+import { MobileDraggableTaskList } from '@/components/MobileDraggableTaskList';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -383,102 +384,76 @@ const Index = () => {
               </div>
             ) : (
               <>
-                {/* Mobile view - single column with swipe */}
-                <div className="block md:hidden">
-                  {/* Status navigation */}
-                  <div className="mb-4 flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={goToPrevStatus}
-                      disabled={currentStatusIndex === 0}
-                      className="shrink-0"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    
-                    <div className="flex-1 text-center">
-                      <div className="font-medium text-foreground">
-                        {STATUS_LABELS[mobileStatusFilter]}
+              {/* Both mobile and desktop use DnD context */}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={pointerWithin}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                >
+                  {/* Mobile view - single column with swipe and drag support */}
+                  <div className="block md:hidden">
+                    {/* Status navigation */}
+                    <div className="mb-4 flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={goToPrevStatus}
+                        disabled={currentStatusIndex === 0}
+                        className="shrink-0"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      
+                      <div className="flex-1 text-center">
+                        <div className="font-medium text-foreground">
+                          {STATUS_LABELS[mobileStatusFilter]}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {tasksByStatus[mobileStatusFilter].length} задач • Удержите карточку для перемещения
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {tasksByStatus[mobileStatusFilter].length} задач • Свайп ← →
-                      </div>
+                      
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={goToNextStatus}
+                        disabled={currentStatusIndex === STATUSES.length - 1}
+                        className="shrink-0"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Status dots indicator */}
+                    <div className="flex justify-center gap-1.5 mb-4">
+                      {STATUSES.map((status, index) => (
+                        <button
+                          key={status}
+                          onClick={() => setMobileStatusFilter(status)}
+                          className={`h-2 rounded-full transition-all ${
+                            index === currentStatusIndex 
+                              ? 'w-6 bg-primary' 
+                              : 'w-2 bg-muted-foreground/30'
+                          }`}
+                          aria-label={STATUS_LABELS[status]}
+                        />
+                      ))}
                     </div>
                     
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={goToNextStatus}
-                      disabled={currentStatusIndex === STATUSES.length - 1}
-                      className="shrink-0"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
+                    {/* Draggable task list with drop zone */}
+                    <MobileDraggableTaskList
+                      status={mobileStatusFilter}
+                      tasks={tasksByStatus[mobileStatusFilter]}
+                      onTaskClick={setSelectedTask}
+                      onAddClick={(type) => handleOpenAddModal(type)}
+                      isTaskSyncing={isTaskSyncing}
+                      isDragging={!!activeDragId}
+                    />
                   </div>
 
-                  {/* Status dots indicator */}
-                  <div className="flex justify-center gap-1.5 mb-4">
-                    {STATUSES.map((status, index) => (
-                      <button
-                        key={status}
-                        onClick={() => setMobileStatusFilter(status)}
-                        className={`h-2 rounded-full transition-all ${
-                          index === currentStatusIndex 
-                            ? 'w-6 bg-primary' 
-                            : 'w-2 bg-muted-foreground/30'
-                        }`}
-                        aria-label={STATUS_LABELS[status]}
-                      />
-                    ))}
-                  </div>
-                  
-                  {/* Swipeable task list */}
-                  <div 
-                    className="space-y-3 min-h-[200px]"
-                    {...swipeHandlers}
-                  >
-                    {tasksByStatus[mobileStatusFilter].map((task) => (
-                      <TaskCard
-                        key={task.id}
-                        task={task}
-                        onClick={() => setSelectedTask(task)}
-                      />
-                    ))}
-                    {tasksByStatus[mobileStatusFilter].length === 0 && (
-                      <div className="text-center py-8">
-                        {mobileStatusFilter === 'ideas' ? (
-                          <Button 
-                            variant="outline" 
-                            onClick={() => handleOpenAddModal('idea')}
-                            className="gap-2"
-                          >
-                            Добавить предложение
-                          </Button>
-                        ) : mobileStatusFilter === 'planned' ? (
-                          <Button 
-                            variant="outline" 
-                            onClick={() => handleOpenAddModal('task')}
-                            className="gap-2"
-                          >
-                            Добавить задачу
-                          </Button>
-                        ) : (
-                          <p className="text-muted-foreground text-sm">Нет задач в этом статусе</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Desktop view - kanban with drag and drop */}
-                <div className="hidden md:block flex-1 min-h-0">
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={pointerWithin}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                  >
+                  {/* Desktop view - kanban with drag and drop */}
+                  <div className="hidden md:block flex-1 min-h-0">
                     <div className="h-[calc(100vh-280px)] flex gap-2">
                       {STATUSES.map((status) => (
                         <DroppableKanbanColumn
@@ -491,13 +466,14 @@ const Index = () => {
                         />
                       ))}
                     </div>
-                    <DragOverlay>
-                      {activeDragTask ? (
-                        <TaskCard task={activeDragTask} onClick={() => {}} />
-                      ) : null}
-                    </DragOverlay>
-                  </DndContext>
-                </div>
+                  </div>
+                  
+                  <DragOverlay>
+                    {activeDragTask ? (
+                      <TaskCard task={activeDragTask} onClick={() => {}} />
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
               </>
             )}
           </TabsContent>
