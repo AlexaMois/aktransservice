@@ -37,13 +37,12 @@ export const DraggableTaskCard = memo(function DraggableTaskCard({ task, onClick
     transform: CSS.Translate.toString(transform),
   };
 
-  // Keep original visible but semi-transparent as "ghost" placeholder
-  // This preserves the element's rect for collision detection
+  // Static placeholder - stays in place while DragOverlay shows the moving copy
+  // Must NOT have style={style} - that's what makes the overlay move, not the placeholder
   if (isDragging) {
     return (
       <Card 
         ref={setNodeRef}
-        style={style}
         className={`opacity-30 pointer-events-none border-dashed border-2 border-border bg-muted/30 p-2.5 touch-none overflow-hidden ${importanceStyles.borderClass}`}
         aria-hidden="true"
       >
