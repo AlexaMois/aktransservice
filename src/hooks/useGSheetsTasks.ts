@@ -3,10 +3,14 @@
  * 
  * All task data flows through this hook:
  * useGSheetsTasks → taskApi → gsheetsTasksApi → /gsheets-api → Google Sheets
+ * 
+ * Architecture:
+ * - 'digitization' scope → reads from Tasks sheet (shared)
+ * - 'personal' scope → reads from user's personal Tasks_Name sheet
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Task, TaskStatus, TaskComment } from '@/entities/task';
+import { Task, TaskStatus, TaskComment, TaskScope } from '@/entities/task';
 import { Announcement } from '@/types/task';
 import { gsheetsAnnouncementsApi, gsheetsCommentsApi, isGSheetsMode } from '@/lib/api/gsheets';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,8 +23,15 @@ const DEFAULT_POLLING_INTERVAL = 30000;
 
 /**
  * Main hook for task management - ALL tasks come from Google Sheets
+ * @param taskScope - 'digitization' for shared Tasks sheet, 'personal' for user's personal sheet
+ * @param pollingInterval - how often to refresh data (ms)
+ * @param enabled - whether to fetch data
  */
-export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enabled = true) {
+export function useGSheetsTasks(
+  taskScope: TaskScope = 'digitization',
+  pollingInterval = DEFAULT_POLLING_INTERVAL, 
+  enabled = true
+) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const isInitialLoad = useRef(true);
@@ -36,7 +47,7 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
     enabled: enabled,
   });
 
-  // Fetch all tasks from Google Sheets
+  // Fetch tasks from appropriate Google Sheet based on scope
   const fetchTasks = useCallback(async (showLoading = true) => {
     if (!enabled) {
       setTasks([]);
@@ -48,7 +59,8 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
       setLoading(true);
     }
     try {
-      const data = await taskApi.fetchTasks();
+      // Fetch from appropriate sheet based on taskScope
+      const data = await taskApi.fetchTasks(taskScope);
       // Replace state entirely with Google Sheets data - NO merging
       setTasks(data);
     } catch (error) {
@@ -58,22 +70,25 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
       setLoading(false);
       isInitialLoad.current = false;
     }
-  }, [enabled]);
+  }, [enabled, taskScope]);
 
   // Set up sync callback for polling
   useEffect(() => {
     setSyncCallback(() => fetchTasks(false));
   }, [fetchTasks, setSyncCallback]);
 
-  // Initial fetch
+  // Refetch when taskScope changes
   useEffect(() => {
     if (!enabled) return;
+    isInitialLoad.current = true;
+    setLoading(true);
     fetchTasks(true);
-  }, [enabled, fetchTasks]);
+  }, [enabled, taskScope, fetchTasks]);
 
   // Add task and refetch to ensure consistency
   const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'status'>) => {
     try {
+      // task_scope is already included in the task object
       const newTask = await taskApi.createTask(task);
       // IMPORTANT: Refetch from Google Sheets to ensure state is in sync
       await fetchTasks(false);
@@ -87,7 +102,8 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
   // Update task in Google Sheets
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
     try {
-      const updatedTask = await taskApi.updateTask(taskId, updates);
+      // Pass current taskScope to update in correct sheet
+      const updatedTask = await taskApi.updateTask(taskId, updates, taskScope);
       // Update local state immediately for responsiveness
       setTasks((prev) => prev.map((t) => (t.id === taskId ? updatedTask : t)));
       return updatedTask;
@@ -100,7 +116,8 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
   // Delete task from Google Sheets
   const deleteTask = async (taskId: string) => {
     try {
-      await taskApi.deleteTask(taskId);
+      // Pass current taskScope to delete from correct sheet
+      await taskApi.deleteTask(taskId, taskScope);
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
     } catch (error) {
       console.error('Error deleting task:', error);

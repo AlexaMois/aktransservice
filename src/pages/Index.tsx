@@ -43,8 +43,11 @@ const STATUSES: TaskStatus[] = ["ideas", "planned", "in-progress", "review", "co
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(() => isAuthenticated());
+  const [taskScope, setTaskScope] = useState<TaskScope>("digitization");
+  
+  // Fetch tasks from appropriate sheet based on taskScope
   const { tasks, loading, addTask, updateTask, deleteTask, refetch, syncStatus, lastSyncTime, manualSync } =
-    useGSheetsTasks(undefined, isLoggedIn);
+    useGSheetsTasks(taskScope, undefined, isLoggedIn);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [defaultTaskType, setDefaultTaskType] = useState<TaskType>("idea");
@@ -52,7 +55,6 @@ const Index = () => {
   const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus>("ideas");
   const [showMigration, setShowMigration] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const [taskScope, setTaskScope] = useState<TaskScope>("digitization");
   const currentUserId = getUserId();
 
   // Optimistic drag & drop with debouncing
@@ -164,18 +166,9 @@ const Index = () => {
   }, [activeTab, hasUnread, markAllAsRead, needsUserName]);
 
   // Apply filters (only to regular tasks, not announcements)
+  // NOTE: Task scope filtering is now done at API level (different sheets), not here
   const filteredTasks = useMemo(() => {
     return regularTasks.filter((task) => {
-      // Task scope filter
-      if (taskScope === 'digitization') {
-        // Show digitization tasks (including legacy tasks with null/undefined scope)
-        if (task.task_scope === 'personal') return false;
-      } else {
-        // Show only personal tasks owned by current user
-        if (task.task_scope !== 'personal') return false;
-        if (task.owner !== currentUserId) return false;
-      }
-
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -222,8 +215,6 @@ const Index = () => {
     });
   }, [
     regularTasks,
-    taskScope,
-    currentUserId,
     searchQuery,
     statusFilter,
     priorityFilter,

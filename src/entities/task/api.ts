@@ -1,20 +1,27 @@
 /**
  * Task API module - Google Sheets is the ONLY source of truth
  * All task CRUD operations go through gsheetsTasksApi → /gsheets-api → Google Sheets
+ * 
+ * Architecture:
+ * - 'digitization' scope → Tasks sheet (shared tasks)
+ * - 'personal' scope → Tasks_UserName sheet (individual user sheets)
  */
 
-import { Task, TaskStatus } from './model';
+import { Task, TaskStatus, TaskScope } from './model';
 import { gsheetsTasksApi } from '@/lib/api/gsheets';
 
 /**
- * Fetch all tasks from Google Sheets, sorted by created_at descending
+ * Fetch tasks from Google Sheets based on scope
+ * - digitization: fetches from main Tasks sheet
+ * - personal: fetches from user's personal Tasks_Name sheet
  */
-export async function fetchTasks(): Promise<Task[]> {
-  return gsheetsTasksApi.list();
+export async function fetchTasks(taskScope: TaskScope = 'digitization'): Promise<Task[]> {
+  return gsheetsTasksApi.list(taskScope);
 }
 
 /**
  * Create a new task with 'ideas' status in Google Sheets
+ * Sheet is determined by task_scope in the task object
  */
 export async function createTask(
   task: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'status'>
@@ -27,12 +34,14 @@ export async function createTask(
 
 /**
  * Update an existing task in Google Sheets
+ * @param taskScope - determines which sheet to update
  */
 export async function updateTask(
   taskId: string,
-  updates: Partial<Task>
+  updates: Partial<Task>,
+  taskScope: TaskScope = 'digitization'
 ): Promise<Task> {
-  return gsheetsTasksApi.update(taskId, updates);
+  return gsheetsTasksApi.update(taskId, updates, taskScope);
 }
 
 /**
@@ -40,14 +49,19 @@ export async function updateTask(
  */
 export async function updateTaskStatus(
   taskId: string,
-  status: TaskStatus
+  status: TaskStatus,
+  taskScope: TaskScope = 'digitization'
 ): Promise<Task> {
-  return updateTask(taskId, { status });
+  return updateTask(taskId, { status }, taskScope);
 }
 
 /**
  * Delete a task by ID from Google Sheets
+ * @param taskScope - determines which sheet to delete from
  */
-export async function deleteTask(taskId: string): Promise<void> {
-  return gsheetsTasksApi.delete(taskId);
+export async function deleteTask(
+  taskId: string, 
+  taskScope: TaskScope = 'digitization'
+): Promise<void> {
+  return gsheetsTasksApi.delete(taskId, taskScope);
 }

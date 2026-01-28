@@ -77,10 +77,10 @@ async function callGSheetsAPI<T = unknown>(
   return result.data as T;
 }
 
-// Tasks API
+// Tasks API - supports both digitization (Tasks sheet) and personal sheets
 export const gsheetsTasksApi = {
-  async list(): Promise<Task[]> {
-    const data = await callGSheetsAPI<Task[]>('list', 'tasks');
+  async list(taskScope: 'digitization' | 'personal' = 'digitization'): Promise<Task[]> {
+    const data = await callGSheetsAPI<Task[]>('list', 'tasks', { task_scope: taskScope });
     return data.sort((a, b) => 
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
@@ -88,16 +88,21 @@ export const gsheetsTasksApi = {
   
   async create(task: Omit<Task, 'id' | 'created_at' | 'updated_at'>): Promise<Task> {
     // Note: author will be set by server from session
+    // task_scope determines which sheet to write to
     return callGSheetsAPI<Task>('create', 'tasks', task as unknown as Record<string, unknown>);
   },
   
-  async update(id: string, updates: Partial<Task>): Promise<Task> {
+  async update(id: string, updates: Partial<Task>, taskScope: 'digitization' | 'personal' = 'digitization'): Promise<Task> {
     // Note: author cannot be changed by client
-    return callGSheetsAPI<Task>('update', 'tasks', updates as unknown as Record<string, unknown>, id);
+    // task_scope determines which sheet to update
+    return callGSheetsAPI<Task>('update', 'tasks', { 
+      ...updates, 
+      task_scope: taskScope 
+    } as unknown as Record<string, unknown>, id);
   },
   
-  async delete(id: string): Promise<void> {
-    await callGSheetsAPI<void>('delete', 'tasks', null, id);
+  async delete(id: string, taskScope: 'digitization' | 'personal' = 'digitization'): Promise<void> {
+    await callGSheetsAPI<void>('delete', 'tasks', { task_scope: taskScope }, id);
   },
 };
 
