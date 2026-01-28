@@ -1,10 +1,11 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Task, TaskStatus, TaskPriority, TaskType, ImportanceRating, Department, STATUS_LABELS } from "@/types/task";
+import { Task, TaskStatus, TaskPriority, TaskType, ImportanceRating, Department, TaskScope, STATUS_LABELS } from "@/entities/task";
 import { useGSheetsTasks } from "@/hooks/useGSheetsTasks";
 import { useDragOptimistic } from "@/hooks/useDragOptimistic";
 import { useAnnouncementReadStatus, hasUserId } from "@/hooks/useAnnouncementReadStatus";
-import { isAuthenticated, clearSession, isAdmin } from "@/lib/auth/session";
+import { isAuthenticated, clearSession, isAdmin, getUserId } from "@/lib/auth/session";
 import { useSwipe } from "@/hooks/useSwipe";
+import { useVoiceRecorder, ParsedTask } from "@/hooks/useVoiceRecorder";
 import {
   DndContext,
   DragEndEvent,
@@ -24,11 +25,12 @@ import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { AddTaskModal } from "@/components/AddTaskModal";
 import { AnnouncementsList } from "@/components/AnnouncementsList";
 import { InProgressView } from "@/components/InProgressView";
-// AdditionalSectionsPage removed - tab no longer displayed
 import { MigrationSetup } from "@/components/MigrationSetup";
 import { DraggableTaskCard } from "@/components/DraggableTaskCard";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
 import { LoginScreen } from "@/components/LoginScreen";
+import { TaskScopeToggle } from "@/components/TaskScopeToggle";
+import { VoiceRecordButton } from "@/components/VoiceRecordButton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +52,8 @@ const Index = () => {
   const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus>("ideas");
   const [showMigration, setShowMigration] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [taskScope, setTaskScope] = useState<TaskScope>("digitization");
+  const currentUserId = getUserId();
 
   // Optimistic drag & drop with debouncing
   const { updateTaskStatus, tasksWithOptimistic, isTaskSyncing } = useDragOptimistic({
@@ -162,6 +166,15 @@ const Index = () => {
   // Apply filters (only to regular tasks, not announcements)
   const filteredTasks = useMemo(() => {
     return regularTasks.filter((task) => {
+      // Task scope filter (digitization vs personal)
+      if (taskScope === 'digitization') {
+        if (task.task_scope !== 'digitization') return false;
+      } else {
+        // Personal mode: show only personal tasks owned by current user
+        if (task.task_scope !== 'personal') return false;
+        if (task.owner !== currentUserId) return false;
+      }
+
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -189,8 +202,6 @@ const Index = () => {
         return false;
       }
 
-      // effectTypeFilter removed - no longer used
-
       // Importance filter
       if (importanceFilter !== "all" && task.importance !== importanceFilter) {
         return false;
@@ -210,6 +221,8 @@ const Index = () => {
     });
   }, [
     regularTasks,
+    taskScope,
+    currentUserId,
     searchQuery,
     statusFilter,
     priorityFilter,
@@ -247,7 +260,6 @@ const Index = () => {
     description?: string;
     task_type: TaskType;
     priority: TaskPriority;
-    // effect_type removed - no longer used
     importance?: ImportanceRating;
     department?: Department;
     url?: string;
@@ -267,12 +279,13 @@ const Index = () => {
       importance: data.importance || null,
       department: data.department || null,
       digitization_section: null, // Deprecated - use department
+      task_scope: taskScope,
       url: data.url || null,
       input_data_description: data.input_data_description || null,
       problem_description: data.problem_description || null,
       file_name: data.file_name || null,
       file_url: data.file_url || null,
-      owner: null,
+      owner: taskScope === 'personal' ? currentUserId : null,
       linked_idea_id: null,
       linked_problem_id: null,
       result_before: null,
@@ -280,6 +293,39 @@ const Index = () => {
       result_after: null,
     });
   };
+
+  // Voice recorder for creating tasks via speech
+  const handleVoiceTaskParsed = useCallback((parsed: ParsedTask) => {
+    // Auto-create task from voice input
+    addTask({
+      title: parsed.title,
+      summary: parsed.summary,
+      description: parsed.description,
+      task_type: parsed.task_type,
+      author: "",
+      priority: 'medium',
+      effect_type: null,
+      importance: parsed.importance,
+      department: null,
+      digitization_section: null,
+      task_scope: taskScope,
+      url: null,
+      input_data_description: null,
+      problem_description: null,
+      file_name: null,
+      file_url: null,
+      owner: taskScope === 'personal' ? currentUserId : null,
+      linked_idea_id: null,
+      linked_problem_id: null,
+      result_before: null,
+      result_action: null,
+      result_after: null,
+    });
+  }, [addTask, taskScope, currentUserId]);
+
+  const { isRecording, isProcessing, toggleRecording } = useVoiceRecorder({
+    onTaskParsed: handleVoiceTaskParsed,
+  });
 
   const handleTaskUpdate = (updatedTask: Task) => {
     refetch();
@@ -380,6 +426,21 @@ const Index = () => {
           </div>
 
           <TabsContent value="roadmap" className="space-y-4 mt-4">
+            {/* Task scope toggle and voice button */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+              <TaskScopeToggle value={taskScope} onChange={setTaskScope} />
+              <div className="flex items-center gap-2">
+                <VoiceRecordButton 
+                  isRecording={isRecording}
+                  isProcessing={isProcessing}
+                  onClick={toggleRecording}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {isRecording ? "Говорите..." : isProcessing ? "Обработка..." : "Голосом"}
+                </span>
+              </div>
+            </div>
+
             <SearchAndFilters
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}

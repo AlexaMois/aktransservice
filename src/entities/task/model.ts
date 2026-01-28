@@ -7,6 +7,7 @@ export type TaskPriority = 'high' | 'medium' | 'low';
 export type TaskType = 'idea' | 'problem' | 'task' | 'announcement' | 'question';
 export type EffectType = 'security' | 'compliance' | 'reduce_manual_work' | 'process_speed' | 'transparency' | 'audit_prep' | 'financial';
 export type ImportanceRating = 'critical' | 'important' | 'can_wait';
+export type TaskScope = 'digitization' | 'personal';
 // Department = company departments for task classification
 export type Department = 'digitization_it' | 'finance' | 'hr' | 'legal_safety' | 'portal_culture' | 'transport_production' | 'management';
 
@@ -25,6 +26,7 @@ export interface Task {
   importance?: ImportanceRating | null;
   department?: Department | null;
   digitization_section?: DigitizationSection | null; // DEPRECATED - use department
+  task_scope: TaskScope;
   author: string;
   owner?: string | null;
   url?: string | null;
@@ -94,6 +96,11 @@ export const IMPORTANCE_LABELS: Record<ImportanceRating, string> = {
   'critical': '1 — Срочно',
   'important': '2 — Важно',
   'can_wait': '3 — Можно позже'
+};
+
+export const TASK_SCOPE_LABELS: Record<TaskScope, string> = {
+  'digitization': 'Цифровизация',
+  'personal': 'Мои задачи'
 };
 
 // Company departments for task classification

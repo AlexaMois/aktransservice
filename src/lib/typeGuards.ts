@@ -3,7 +3,7 @@
  * Replaces unsafe casts with explicit validation
  */
 
-import { Task, TaskStatus, TaskType, TaskPriority, ImportanceRating, EffectType, Department } from '@/entities/task';
+import { Task, TaskStatus, TaskType, TaskPriority, ImportanceRating, EffectType, Department, TaskScope } from '@/entities/task';
 import { Announcement, DigitizationQueueItem, NotAutomatingItem, ExperimentItem } from '@/types/task';
 
 // Valid enum values for validation
@@ -13,6 +13,7 @@ const VALID_PRIORITIES: TaskPriority[] = ['high', 'medium', 'low'];
 const VALID_IMPORTANCE: ImportanceRating[] = ['critical', 'important', 'can_wait'];
 const VALID_EFFECT_TYPES: EffectType[] = ['security', 'compliance', 'reduce_manual_work', 'process_speed', 'transparency', 'audit_prep', 'financial'];
 const VALID_DEPARTMENTS: Department[] = ['digitization_it', 'finance', 'hr', 'legal_safety', 'portal_culture', 'transport_production', 'management'];
+const VALID_TASK_SCOPES: TaskScope[] = ['digitization', 'personal'];
 
 /**
  * Check if value is a non-null object
@@ -61,6 +62,13 @@ export function isEffectType(value: unknown): value is EffectType {
  */
 export function isDepartment(value: unknown): value is Department {
   return value === null || (typeof value === 'string' && VALID_DEPARTMENTS.includes(value as Department));
+}
+
+/**
+ * Check if value is a valid TaskScope
+ */
+export function isTaskScope(value: unknown): value is TaskScope {
+  return typeof value === 'string' && VALID_TASK_SCOPES.includes(value as TaskScope);
 }
 
 /**
@@ -172,6 +180,7 @@ export function mapToTask(row: Record<string, unknown>): Task {
     importance: isImportanceRating(row.importance) ? row.importance : null,
     department: isDepartment(row.department) ? row.department : null,
     digitization_section: row.digitization_section as Task['digitization_section'],
+    task_scope: isTaskScope(row.task_scope) ? row.task_scope : 'digitization',
     author: asString(row.author) || 'Аноним',
     owner: row.owner as string | null | undefined,
     url: row.url as string | null | undefined,

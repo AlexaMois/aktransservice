@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.upload-to-gdrive]
 verify_jwt = false
+
+[functions.stt]
+verify_jwt = false
+
+[functions.ai-task-parser]
+verify_jwt = false
