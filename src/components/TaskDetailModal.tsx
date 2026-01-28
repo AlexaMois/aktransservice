@@ -57,9 +57,9 @@ const statusVariants: Record<string, string> = {
 };
 
 const importanceVariants: Record<string, string> = {
-  critical: 'bg-destructive/10 text-destructive border-destructive/20',
-  important: 'bg-chart-1/10 text-chart-5 border-chart-1/20',
-  can_wait: 'bg-muted text-muted-foreground border-muted',
+  critical: 'bg-red-500/10 text-red-600 border-red-500/20',
+  important: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
+  can_wait: 'bg-green-500/10 text-green-600 border-green-500/20',
 };
 
 const TaskTypeIcon = ({ type }: { type: Task['task_type'] }) => {
@@ -193,6 +193,15 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
   };
 
   const handleSaveLog = async () => {
+    // Validate task.id before making request
+    if (!task?.id) {
+      toast.error('Ошибка: не удалось определить задачу');
+      return;
+    }
+    
+    // Prevent double-click / race conditions
+    if (savingLog) return;
+    
     setSavingLog(true);
     try {
       const { data, error } = await supabase

@@ -40,7 +40,7 @@ import { toast } from "sonner";
 const STATUSES: TaskStatus[] = ["ideas", "planned", "in-progress", "review", "completed"];
 
 const Index = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(isAuthenticated());
+  const [isLoggedIn, setIsLoggedIn] = useState(() => isAuthenticated());
   const { tasks, loading, addTask, updateTask, deleteTask, refetch, syncStatus, lastSyncTime, manualSync } =
     useGSheetsTasks(undefined, isLoggedIn);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -301,9 +301,8 @@ const Index = () => {
     // Use optimistic update - no await, immediate visual feedback
     const success = await updateTaskStatus(taskId, newStatus);
 
-    if (success) {
-      toast.success(`Статус изменён на "${STATUS_LABELS[newStatus]}"`);
-    } else {
+    // Only show toast on failure since success is already visually indicated
+    if (!success) {
       toast.error("Ошибка при изменении статуса");
     }
   };

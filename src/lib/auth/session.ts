@@ -11,6 +11,7 @@ export interface UserSession {
 }
 
 const SESSION_KEY = 'app_user_session';
+const LOGGED_KEY = 'app_user_logged';
 
 export function getSession(): UserSession | null {
   if (typeof window === 'undefined') return null;
@@ -27,10 +28,19 @@ export function getSession(): UserSession | null {
 
 export function setSession(session: UserSession): void {
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  localStorage.setItem(LOGGED_KEY, 'true');
 }
 
 export function clearSession(): void {
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(LOGGED_KEY);
+}
+
+/**
+ * Check if user has ever logged in (for first-login tracking)
+ */
+export function hasLoggedBefore(): boolean {
+  return localStorage.getItem(LOGGED_KEY) === 'true';
 }
 
 export function isAuthenticated(): boolean {
