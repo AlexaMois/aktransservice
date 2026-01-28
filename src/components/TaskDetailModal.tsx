@@ -73,7 +73,9 @@ const TaskTypeIcon = ({ type }: { type: Task['task_type'] }) => {
 };
 
 export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpdate, onUpdateTask, onDeleteTask }: TaskDetailModalProps) {
-  const { comments, loading: commentsLoading, addComment } = useTaskComments(task?.id || '');
+  // Early return if no task - hooks must be called unconditionally
+  const taskId = task?.id ?? '';
+  const { comments, loading: commentsLoading, addComment } = useTaskComments(taskId);
   const [commentAuthor, setCommentAuthor] = useState('');
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
@@ -92,10 +94,16 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
     }
   }, [task?.id, task?.execution_log, isEditingLog]);
 
+  // Early return after hooks
   if (!task) return null;
 
-  const linkedIdea = task.linked_idea_id ? allTasks.find(t => t.id === task.linked_idea_id) : null;
-  const linkedProblem = task.linked_problem_id ? allTasks.find(t => t.id === task.linked_problem_id) : null;
+  // Safe linked item lookups with explicit undefined handling
+  const linkedIdea: Task | undefined = task.linked_idea_id 
+    ? allTasks.find(t => t.id === task.linked_idea_id) 
+    : undefined;
+  const linkedProblem: Task | undefined = task.linked_problem_id 
+    ? allTasks.find(t => t.id === task.linked_problem_id) 
+    : undefined;
 
   const handleStatusChange = async (newStatus: TaskStatus) => {
     if (!onUpdateTask || newStatus === task.status) return;
@@ -193,12 +201,19 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
         .single();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error('No data returned from update');
+      }
 
       setIsEditingLog(false);
       toast.success('Лог сохранён');
       
-      if (onTaskUpdate && data) {
-        onTaskUpdate(data as Task);
+      if (onTaskUpdate) {
+        const updatedTask: Task = {
+          ...data,
+          summary: data.summary || data.description || '',
+        };
+        onTaskUpdate(updatedTask);
       }
     } catch (error) {
       console.error('Error saving log:', error);
