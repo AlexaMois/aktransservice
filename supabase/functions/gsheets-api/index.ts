@@ -259,7 +259,8 @@ function objectToRow(obj: Record<string, any>, columns: string[]): string[] {
 }
 
 async function getSheetData(accessToken: string, sheetName: string, spreadsheetId: string): Promise<string[][]> {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A:Z`;
+  // Use A:AZ to support up to 52 columns (TASK_COLUMNS has 29)
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A:AZ`;
   const response = await fetch(url, {
     headers: { 'Authorization': `Bearer ${accessToken}` },
   });
@@ -274,7 +275,8 @@ async function getSheetData(accessToken: string, sheetName: string, spreadsheetI
 }
 
 async function appendRow(accessToken: string, sheetName: string, values: string[], spreadsheetId: string): Promise<void> {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A:Z:append?valueInputOption=RAW`;
+  // Use A:AZ to support up to 52 columns
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A:AZ:append?valueInputOption=RAW`;
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -291,7 +293,8 @@ async function appendRow(accessToken: string, sheetName: string, values: string[
 }
 
 async function updateRow(accessToken: string, sheetName: string, rowIndex: number, values: string[], spreadsheetId: string): Promise<void> {
-  const range = `${sheetName}!A${rowIndex}:Z${rowIndex}`;
+  // Use A:AZ to support up to 52 columns (TASK_COLUMNS has 29)
+  const range = `${sheetName}!A${rowIndex}:AZ${rowIndex}`;
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=RAW`;
   const response = await fetch(url, {
     method: 'PUT',
