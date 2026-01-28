@@ -57,6 +57,7 @@ export const DroppableKanbanColumn = memo(function DroppableKanbanColumn({
   return (
     <div 
       ref={setNodeRef}
+      data-status={status}
       className={`flex flex-col rounded-lg flex-1 min-w-0 transition-colors duration-200
         ${isOver ? 'bg-primary/10 ring-2 ring-primary/30' : 'bg-accent/30'}
       `}
