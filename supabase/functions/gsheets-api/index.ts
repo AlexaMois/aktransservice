@@ -41,6 +41,7 @@ const SHEETS = {
   users: 'Users',
   userRoles: 'UserRoles',
   accessCodes: 'AccessCodes',
+  loginLogs: 'LoginLogs',
 };
 
 interface ServiceAccountKey {
@@ -150,7 +151,46 @@ const READ_STATUS_COLUMNS = ['id', 'announcement_id', 'user_id', 'read_at'];
 const USER_COLUMNS = ['user_id', 'name', 'role', 'access_code', 'active', 'created_at'];
 const USER_ROLE_COLUMNS = ['user_id', 'role', 'created_at'];
 const ACCESS_CODE_COLUMNS = ['code', 'role', 'active', 'created_at'];
+const LOGIN_LOG_COLUMNS = ['id', 'user_id', 'name', 'role', 'timestamp'];
 
+// Helper to check if user has logged in before
+async function hasUserLoggedBefore(accessToken: string, spreadsheetId: string, userId: string): Promise<boolean> {
+  try {
+    await ensureSheetExists(accessToken, SHEETS.loginLogs, LOGIN_LOG_COLUMNS, spreadsheetId);
+    const rows = await getSheetData(accessToken, SHEETS.loginLogs, spreadsheetId);
+    if (rows.length <= 1) return false;
+    
+    const headers = rows[0];
+    const userIdIndex = idx(headers, 'user_id');
+    
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][userIdIndex] === userId) {
+        return true;
+      }
+    }
+    return false;
+  } catch (e) {
+    console.log('Login log check error (non-fatal):', e);
+    return false;
+  }
+}
+
+// Log first login to LoginLogs sheet
+async function logFirstLogin(accessToken: string, spreadsheetId: string, user: AppUser): Promise<void> {
+  try {
+    await ensureSheetExists(accessToken, SHEETS.loginLogs, LOGIN_LOG_COLUMNS, spreadsheetId);
+    const logEntry = {
+      id: crypto.randomUUID(),
+      user_id: user.user_id,
+      name: user.name,
+      role: user.role,
+      timestamp: new Date().toISOString(),
+    };
+    await appendRow(accessToken, SHEETS.loginLogs, objectToRow(logEntry, LOGIN_LOG_COLUMNS), spreadsheetId);
+  } catch (e) {
+    console.log('Login log write error (non-fatal):', e);
+  }
+}
 function idx(headers: string[], key: string): number {
   return headers.indexOf(key);
 }
@@ -566,6 +606,10 @@ Deno.serve(async (req) => {
             await appendRow(accessToken, SHEETS.userRoles, objectToRow(roleRow, USER_ROLE_COLUMNS), spreadsheetId);
 
             newUser.role = roleRow.role;
+            
+            // Log first login for new user
+            await logFirstLogin(accessToken, spreadsheetId, newUser);
+            
             result = newUser;
             break;
           }
@@ -587,6 +631,13 @@ Deno.serve(async (req) => {
 
           // SECURITY: load role from separate sheet
           foundUser.role = await getRoleForUser(accessToken, spreadsheetId, foundUser.user_id);
+          
+          // Log first login (only if user hasn't logged before)
+          const hasLogged = await hasUserLoggedBefore(accessToken, spreadsheetId, foundUser.user_id);
+          if (!hasLogged) {
+            await logFirstLogin(accessToken, spreadsheetId, foundUser);
+          }
+          
           result = foundUser;
         } else if (action === 'seed') {
           // Seed action: create initial admin user
