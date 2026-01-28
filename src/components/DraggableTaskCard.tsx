@@ -4,7 +4,6 @@ import { Task, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from '@/types/task';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Lightbulb, ListTodo, Megaphone, HelpCircle } from 'lucide-react';
-import { CSS } from '@dnd-kit/utilities';
 import { getImportanceStyles } from '@/lib/importanceUtils';
 
 interface DraggableTaskCardProps {
@@ -26,16 +25,15 @@ const TaskTypeIcon = ({ type }: { type: Task['task_type'] }) => {
 };
 
 export const DraggableTaskCard = memo(function DraggableTaskCard({ task, onClick, isSyncing }: DraggableTaskCardProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
     data: { task },
   });
 
   const importanceStyles = getImportanceStyles(task.importance);
 
-  const style = {
-    transform: CSS.Translate.toString(transform),
-  };
+  // We do NOT apply transform here - DragOverlay handles the "flying" copy
+  // The original element stays in place as a static placeholder
 
   // Static placeholder - stays in place while DragOverlay shows the moving copy
   // Must NOT have style={style} - that's what makes the overlay move, not the placeholder
@@ -74,7 +72,6 @@ export const DraggableTaskCard = memo(function DraggableTaskCard({ task, onClick
   return (
     <Card 
       ref={setNodeRef}
-      style={style}
       {...listeners}
       {...attributes}
       className={`cursor-grab transition-all duration-200 border-border/50 bg-card p-2.5 touch-none overflow-hidden ${importanceStyles.borderClass}
