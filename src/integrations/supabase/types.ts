@@ -171,6 +171,7 @@ export type Database = {
           author: string
           created_at: string
           description: string | null
+          due_date: string | null
           effect_type: Database["public"]["Enums"]["effect_type"] | null
           execution_log: string | null
           file_name: string | null
@@ -183,6 +184,7 @@ export type Database = {
           owner: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           problem_description: string | null
+          reminder_sent: boolean
           result_action: string | null
           result_after: string | null
           result_before: string | null
@@ -198,6 +200,7 @@ export type Database = {
           author?: string
           created_at?: string
           description?: string | null
+          due_date?: string | null
           effect_type?: Database["public"]["Enums"]["effect_type"] | null
           execution_log?: string | null
           file_name?: string | null
@@ -210,6 +213,7 @@ export type Database = {
           owner?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           problem_description?: string | null
+          reminder_sent?: boolean
           result_action?: string | null
           result_after?: string | null
           result_before?: string | null
@@ -225,6 +229,7 @@ export type Database = {
           author?: string
           created_at?: string
           description?: string | null
+          due_date?: string | null
           effect_type?: Database["public"]["Enums"]["effect_type"] | null
           execution_log?: string | null
           file_name?: string | null
@@ -237,6 +242,7 @@ export type Database = {
           owner?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           problem_description?: string | null
+          reminder_sent?: boolean
           result_action?: string | null
           result_after?: string | null
           result_before?: string | null
@@ -282,6 +288,27 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_telegram: {
+        Row: {
+          created_at: string
+          id: string
+          telegram_user_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          telegram_user_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          telegram_user_id?: string
           user_id?: string
         }
         Relationships: []
