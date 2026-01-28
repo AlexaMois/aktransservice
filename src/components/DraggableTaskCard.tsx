@@ -4,6 +4,7 @@ import { Task, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from '@/types/task';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Lightbulb, ListTodo, Megaphone, HelpCircle } from 'lucide-react';
+import { CSS } from '@dnd-kit/utilities';
 import { getImportanceStyles } from '@/lib/importanceUtils';
 
 interface DraggableTaskCardProps {
@@ -25,22 +26,21 @@ const TaskTypeIcon = ({ type }: { type: Task['task_type'] }) => {
 };
 
 export const DraggableTaskCard = memo(function DraggableTaskCard({ task, onClick, isSyncing }: DraggableTaskCardProps) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     data: { task },
   });
 
   const importanceStyles = getImportanceStyles(task.importance);
 
-  // We do NOT apply transform here - DragOverlay handles the "flying" copy
-  // The original element stays in place as a static placeholder
+  // Apply transform to the dragged element itself (most reliable with collision detection)
+  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
 
-  // Static placeholder - stays in place while DragOverlay shows the moving copy
-  // Must NOT have style={style} - that's what makes the overlay move, not the placeholder
   if (isDragging) {
     return (
       <Card 
         ref={setNodeRef}
+        style={style}
         className={`opacity-30 pointer-events-none border-dashed border-2 border-border bg-muted/30 p-2.5 touch-none overflow-hidden ${importanceStyles.borderClass}`}
         aria-hidden="true"
       >
@@ -72,6 +72,7 @@ export const DraggableTaskCard = memo(function DraggableTaskCard({ task, onClick
   return (
     <Card 
       ref={setNodeRef}
+      style={style}
       {...listeners}
       {...attributes}
       className={`cursor-grab transition-all duration-200 border-border/50 bg-card p-2.5 touch-none overflow-hidden ${importanceStyles.borderClass}
