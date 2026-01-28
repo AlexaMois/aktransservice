@@ -1,55 +1,61 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Task, TaskStatus, TaskPriority, TaskType, ImportanceRating, Department, STATUS_LABELS } from '@/types/task';
-import { useGSheetsTasks } from '@/hooks/useGSheetsTasks';
-import { useDragOptimistic } from '@/hooks/useDragOptimistic';
-import { useAnnouncementReadStatus, hasUserId } from '@/hooks/useAnnouncementReadStatus';
-import { isAuthenticated, clearSession, isAdmin } from '@/lib/auth/session';
-import { useSwipe } from '@/hooks/useSwipe';
-import { DndContext, DragEndEvent, DragOverlay, pointerWithin, useSensor, useSensors, PointerSensor, TouchSensor } from '@dnd-kit/core';
-import { Header } from '@/components/Header';
-import { SearchAndFilters } from '@/components/SearchAndFilters';
-import { KanbanColumn } from '@/components/KanbanColumn';
-import { DroppableKanbanColumn } from '@/components/DroppableKanbanColumn';
-import { TaskDetailModal } from '@/components/TaskDetailModal';
-import { AddTaskModal } from '@/components/AddTaskModal';
-import { AnnouncementsList } from '@/components/AnnouncementsList';
-import { InProgressView } from '@/components/InProgressView';
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { Task, TaskStatus, TaskPriority, TaskType, ImportanceRating, Department, STATUS_LABELS } from "@/types/task";
+import { useGSheetsTasks } from "@/hooks/useGSheetsTasks";
+import { useDragOptimistic } from "@/hooks/useDragOptimistic";
+import { useAnnouncementReadStatus, hasUserId } from "@/hooks/useAnnouncementReadStatus";
+import { isAuthenticated, clearSession, isAdmin } from "@/lib/auth/session";
+import { useSwipe } from "@/hooks/useSwipe";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  pointerWithin,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  TouchSensor,
+} from "@dnd-kit/core";
+import { Header } from "@/components/Header";
+import { SearchAndFilters } from "@/components/SearchAndFilters";
+import { KanbanColumn } from "@/components/KanbanColumn";
+import { DroppableKanbanColumn } from "@/components/DroppableKanbanColumn";
+import { TaskDetailModal } from "@/components/TaskDetailModal";
+import { AddTaskModal } from "@/components/AddTaskModal";
+import { AnnouncementsList } from "@/components/AnnouncementsList";
+import { InProgressView } from "@/components/InProgressView";
 // AdditionalSectionsPage removed - tab no longer displayed
-import { MigrationSetup } from '@/components/MigrationSetup';
-import { SyncStatusIndicator } from '@/components/SyncStatusIndicator';
-import { LoginScreen } from '@/components/LoginScreen';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Map, Megaphone, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
-import { TaskCard } from '@/components/TaskCard';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import { MigrationSetup } from "@/components/MigrationSetup";
+import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
+import { LoginScreen } from "@/components/LoginScreen";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Map, Megaphone, Zap, ChevronLeft, ChevronRight } from "lucide-react";
+import { TaskCard } from "@/components/TaskCard";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
-const STATUSES: TaskStatus[] = ['ideas', 'planned', 'in-progress', 'review', 'completed'];
+const STATUSES: TaskStatus[] = ["ideas", "planned", "in-progress", "review", "completed"];
 
 const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(isAuthenticated());
-  const { tasks, loading, addTask, updateTask, deleteTask, refetch, syncStatus, lastSyncTime, manualSync } = useGSheetsTasks(undefined, isLoggedIn);
+  const { tasks, loading, addTask, updateTask, deleteTask, refetch, syncStatus, lastSyncTime, manualSync } =
+    useGSheetsTasks(undefined, isLoggedIn);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [defaultTaskType, setDefaultTaskType] = useState<TaskType>('idea');
-  const [activeTab, setActiveTab] = useState('roadmap');
-  const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus>('ideas');
+  const [defaultTaskType, setDefaultTaskType] = useState<TaskType>("idea");
+  const [activeTab, setActiveTab] = useState("roadmap");
+  const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus>("ideas");
   const [showMigration, setShowMigration] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  
+
   // Optimistic drag & drop with debouncing
-  const { 
-    updateTaskStatus, 
-    tasksWithOptimistic, 
-    isTaskSyncing, 
-  } = useDragOptimistic({
+  const { updateTaskStatus, tasksWithOptimistic, isTaskSyncing } = useDragOptimistic({
     tasks,
     onUpdateTask: updateTask,
     debounceMs: 400,
   });
-  
+
   // DnD sensors with activation constraints to allow clicks
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -62,22 +68,22 @@ const Index = () => {
         delay: 200, // 200ms hold before drag starts on touch
         tolerance: 5,
       },
-    })
+    }),
   );
-  
+
   // Filters
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
-  const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'all'>('all');
-  const [taskTypeFilter, setTaskTypeFilter] = useState<TaskType | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
+  const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "all">("all");
+  const [taskTypeFilter, setTaskTypeFilter] = useState<TaskType | "all">("all");
   // effectTypeFilter removed - no longer used
-  const [importanceFilter, setImportanceFilter] = useState<ImportanceRating | 'all'>('all');
-  const [ownerFilter, setOwnerFilter] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState<Department | 'all'>('all');
+  const [importanceFilter, setImportanceFilter] = useState<ImportanceRating | "all">("all");
+  const [ownerFilter, setOwnerFilter] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState<Department | "all">("all");
 
   // Swipe navigation for mobile
   const currentStatusIndex = STATUSES.indexOf(mobileStatusFilter);
-  
+
   const goToNextStatus = useCallback(() => {
     if (currentStatusIndex < STATUSES.length - 1) {
       setMobileStatusFilter(STATUSES[currentStatusIndex + 1]);
@@ -109,18 +115,18 @@ const Index = () => {
   const { announcements, regularTasks } = useMemo(() => {
     const announcements: Task[] = [];
     const regularTasks: Task[] = [];
-    
+
     tasksWithOptimistic.forEach((task) => {
-      if (task.task_type === 'announcement') {
+      if (task.task_type === "announcement") {
         announcements.push(task);
       } else {
         regularTasks.push(task);
       }
     });
-    
+
     // Sort announcements by created_at descending (newest first)
     announcements.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    
+
     return { announcements, regularTasks };
   }, [tasksWithOptimistic]);
 
@@ -141,7 +147,7 @@ const Index = () => {
 
   // Mark announcements as read when user opens the tab
   useEffect(() => {
-    if (activeTab === 'announcements' && hasUnread && !needsUserName) {
+    if (activeTab === "announcements" && hasUnread && !needsUserName) {
       // Delay marking as read so user can see the "new" badges
       const timer = setTimeout(() => {
         markAllAsRead();
@@ -166,24 +172,24 @@ const Index = () => {
       }
 
       // Status filter
-      if (statusFilter !== 'all' && task.status !== statusFilter) {
+      if (statusFilter !== "all" && task.status !== statusFilter) {
         return false;
       }
 
       // Priority filter
-      if (priorityFilter !== 'all' && task.priority !== priorityFilter) {
+      if (priorityFilter !== "all" && task.priority !== priorityFilter) {
         return false;
       }
 
       // Task type filter
-      if (taskTypeFilter !== 'all' && task.task_type !== taskTypeFilter) {
+      if (taskTypeFilter !== "all" && task.task_type !== taskTypeFilter) {
         return false;
       }
 
       // effectTypeFilter removed - no longer used
 
       // Importance filter
-      if (importanceFilter !== 'all' && task.importance !== importanceFilter) {
+      if (importanceFilter !== "all" && task.importance !== importanceFilter) {
         return false;
       }
 
@@ -193,24 +199,33 @@ const Index = () => {
       }
 
       // Department filter
-      if (departmentFilter !== 'all' && task.department !== departmentFilter) {
+      if (departmentFilter !== "all" && task.department !== departmentFilter) {
         return false;
       }
 
       return true;
     });
-  }, [regularTasks, searchQuery, statusFilter, priorityFilter, taskTypeFilter, importanceFilter, ownerFilter, departmentFilter]);
+  }, [
+    regularTasks,
+    searchQuery,
+    statusFilter,
+    priorityFilter,
+    taskTypeFilter,
+    importanceFilter,
+    ownerFilter,
+    departmentFilter,
+  ]);
 
   // Group tasks by status
   const tasksByStatus = useMemo(() => {
     const grouped: Record<TaskStatus, Task[]> = {
-      'ideas': [],
-      'planned': [],
-      'in-progress': [],
-      'review': [],
-      'completed': [],
+      ideas: [],
+      planned: [],
+      "in-progress": [],
+      review: [],
+      completed: [],
     };
-    
+
     filteredTasks.forEach((task) => {
       grouped[task.status].push(task);
     });
@@ -218,7 +233,7 @@ const Index = () => {
     return grouped;
   }, [filteredTasks]);
 
-  const handleOpenAddModal = (type: TaskType = 'idea') => {
+  const handleOpenAddModal = (type: TaskType = "idea") => {
     setDefaultTaskType(type);
     setIsAddModalOpen(true);
   };
@@ -243,7 +258,7 @@ const Index = () => {
       summary: data.summary,
       description: data.description || null,
       task_type: data.task_type,
-      author: '', // Will be set by server from session
+      author: "", // Will be set by server from session
       priority: data.priority,
       effect_type: null, // Deprecated - always null
       importance: data.importance || null,
@@ -271,22 +286,22 @@ const Index = () => {
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveDragId(null);
     const { active, over } = event;
-    
+
     if (!over) return;
-    
+
     const taskId = active.id as string;
     const newStatus = over.id as TaskStatus;
-    const task = tasksWithOptimistic.find(t => t.id === taskId);
-    
+    const task = tasksWithOptimistic.find((t) => t.id === taskId);
+
     if (!task || task.status === newStatus) return;
-    
+
     // Use optimistic update - no await, immediate visual feedback
     const success = await updateTaskStatus(taskId, newStatus);
-    
+
     if (success) {
       toast.success(`Статус изменён на "${STATUS_LABELS[newStatus]}"`);
     } else {
-      toast.error('Ошибка при изменении статуса');
+      toast.error("Ошибка при изменении статуса");
     }
   };
 
@@ -294,7 +309,7 @@ const Index = () => {
     setActiveDragId(event.active.id as string);
   };
 
-  const activeDragTask = activeDragId ? tasksWithOptimistic.find(t => t.id === activeDragId) : null;
+  const activeDragTask = activeDragId ? tasksWithOptimistic.find((t) => t.id === activeDragId) : null;
 
   // Show login screen if not authenticated
   if (!isLoggedIn) {
@@ -307,10 +322,12 @@ const Index = () => {
       <div className="min-h-screen bg-background flex flex-col">
         <Header onLogout={handleLogout} />
         <main className="flex-1 container mx-auto px-3 sm:px-4 py-8">
-          <MigrationSetup onComplete={() => {
-            setShowMigration(false);
-            refetch();
-          }} />
+          <MigrationSetup
+            onComplete={() => {
+              setShowMigration(false);
+              refetch();
+            }}
+          />
         </main>
       </div>
     );
@@ -319,7 +336,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header onLogout={handleLogout} />
-      
+
       <main className="flex-1 container mx-auto px-3 sm:px-4 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* Tab header with sync status */}
@@ -334,20 +351,23 @@ const Index = () => {
                 <Zap className="h-4 w-4" />
                 <span>В работе</span>
               </TabsTrigger>
-              <TabsTrigger value="announcements" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5 relative">
+              <TabsTrigger
+                value="announcements"
+                className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5 relative"
+              >
                 <Megaphone className="h-4 w-4" />
                 <span>Объявления</span>
                 {unreadCount > 0 && (
-                  <Badge 
-                    variant="destructive" 
+                  <Badge
+                    variant="destructive"
                     className="absolute -top-1 -right-1 h-5 min-w-5 px-1.5 text-[10px] flex items-center justify-center"
                   >
-                    {unreadCount > 9 ? '9+' : unreadCount}
+                    {unreadCount > 9 ? "9+" : unreadCount}
                   </Badge>
                 )}
               </TabsTrigger>
             </TabsList>
-            
+
             {/* Sync status indicator */}
             <SyncStatusIndicator
               status={syncStatus}
@@ -374,7 +394,7 @@ const Index = () => {
               ownerFilter={ownerFilter}
               onOwnerFilterChange={setOwnerFilter}
               owners={owners}
-              onAddClick={() => handleOpenAddModal('idea')}
+              onAddClick={() => handleOpenAddModal("idea")}
             />
 
             {loading ? (
@@ -396,16 +416,14 @@ const Index = () => {
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    
+
                     <div className="flex-1 text-center">
-                      <div className="font-medium text-foreground">
-                        {STATUS_LABELS[mobileStatusFilter]}
-                      </div>
+                      <div className="font-medium text-foreground">{STATUS_LABELS[mobileStatusFilter]}</div>
                       <div className="text-xs text-muted-foreground">
                         {tasksByStatus[mobileStatusFilter].length} задач • Свайп ← →
                       </div>
                     </div>
-                    
+
                     <Button
                       variant="outline"
                       size="icon"
@@ -424,43 +442,26 @@ const Index = () => {
                         key={status}
                         onClick={() => setMobileStatusFilter(status)}
                         className={`h-2 rounded-full transition-all ${
-                          index === currentStatusIndex 
-                            ? 'w-6 bg-primary' 
-                            : 'w-2 bg-muted-foreground/30'
+                          index === currentStatusIndex ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30"
                         }`}
                         aria-label={STATUS_LABELS[status]}
                       />
                     ))}
                   </div>
-                  
+
                   {/* Swipeable task list */}
-                  <div 
-                    className="space-y-3 min-h-[200px]"
-                    {...swipeHandlers}
-                  >
+                  <div className="space-y-3 min-h-[200px]" {...swipeHandlers}>
                     {tasksByStatus[mobileStatusFilter].map((task) => (
-                      <TaskCard
-                        key={task.id}
-                        task={task}
-                        onClick={() => setSelectedTask(task)}
-                      />
+                      <TaskCard key={task.id} task={task} onClick={() => setSelectedTask(task)} />
                     ))}
                     {tasksByStatus[mobileStatusFilter].length === 0 && (
                       <div className="text-center py-8">
-                        {mobileStatusFilter === 'ideas' ? (
-                          <Button 
-                            variant="outline" 
-                            onClick={() => handleOpenAddModal('idea')}
-                            className="gap-2"
-                          >
+                        {mobileStatusFilter === "ideas" ? (
+                          <Button variant="outline" onClick={() => handleOpenAddModal("idea")} className="gap-2">
                             Добавить предложение
                           </Button>
-                        ) : mobileStatusFilter === 'planned' ? (
-                          <Button 
-                            variant="outline" 
-                            onClick={() => handleOpenAddModal('task')}
-                            className="gap-2"
-                          >
+                        ) : mobileStatusFilter === "planned" ? (
+                          <Button variant="outline" onClick={() => handleOpenAddModal("task")} className="gap-2">
                             Добавить задачу
                           </Button>
                         ) : (
@@ -492,9 +493,7 @@ const Index = () => {
                       ))}
                     </div>
                     <DragOverlay>
-                      {activeDragTask ? (
-                        <TaskCard task={activeDragTask} onClick={() => {}} />
-                      ) : null}
+                      {activeDragTask ? <TaskCard task={activeDragTask} onClick={() => {}} /> : null}
                     </DragOverlay>
                   </DndContext>
                 </div>
@@ -503,16 +502,12 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="in-progress" className="mt-4">
-            <InProgressView 
-              tasks={tasks} 
-              loading={loading}
-              onTaskClick={setSelectedTask}
-            />
+            <InProgressView tasks={tasks} loading={loading} onTaskClick={setSelectedTask} />
           </TabsContent>
 
           <TabsContent value="announcements" className="mt-4">
-            <AnnouncementsList 
-              announcements={announcements} 
+            <AnnouncementsList
+              announcements={announcements}
               loading={loading}
               isUnread={isUnread}
               onUpdateAnnouncement={updateTask}
