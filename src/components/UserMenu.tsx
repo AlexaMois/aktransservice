@@ -9,10 +9,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { User, LogOut, Shield, ExternalLink, Table, MessageCircle } from 'lucide-react';
+import { User, LogOut, Shield, ExternalLink, Table } from 'lucide-react';
 import { getSession, clearSession, isAdmin } from '@/lib/auth/session';
 import { edgeFetchJson, base64UrlEncodeUtf8 } from '@/shared/api/edgeFetch';
-import { TelegramLinkDialog } from './TelegramLinkDialog';
 
 interface UserMenuProps {
   onLogout: () => void;
@@ -26,11 +25,11 @@ interface SpreadsheetUrlResponse {
 export function UserMenu({ onLogout }: UserMenuProps) {
   const session = getSession();
   const [spreadsheetUrl, setSpreadsheetUrl] = useState<string | null>(null);
-  const [showTelegramDialog, setShowTelegramDialog] = useState(false);
+  const userIsAdmin = isAdmin();
   
-  // Fetch spreadsheet ID for admin users
+  // Fetch spreadsheet URL for admin users
   useEffect(() => {
-    if (!isAdmin() || !session) return;
+    if (!userIsAdmin || !session) return;
     
     const fetchSpreadsheetInfo = async () => {
       try {
@@ -41,6 +40,7 @@ export function UserMenu({ onLogout }: UserMenuProps) {
           },
           body: JSON.stringify({ action: 'getSpreadsheetUrl', entity: 'admin' }),
         });
+        console.log('Spreadsheet URL response:', result);
         if (result.success && result.data?.url) {
           setSpreadsheetUrl(result.data.url);
         }
@@ -50,7 +50,7 @@ export function UserMenu({ onLogout }: UserMenuProps) {
     };
     
     fetchSpreadsheetInfo();
-  }, [session]);
+  }, [userIsAdmin, session]);
   
   if (!session) return null;
 
@@ -66,56 +66,44 @@ export function UserMenu({ onLogout }: UserMenuProps) {
   };
 
   return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
-            <User className="h-4 w-4" />
-            <span className="hidden sm:inline">{session.name}</span>
-            {isAdmin() && (
-              <Badge variant="secondary" className="ml-1 hidden sm:flex">
-                <Shield className="h-3 w-3 mr-1" />
-                Админ
-              </Badge>
-            )}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>
-            <div className="flex flex-col">
-              <span>{session.name}</span>
-              <span className="text-xs text-muted-foreground font-normal">
-                {isAdmin() ? 'Администратор' : 'Пользователь'}
-              </span>
-            </div>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setShowTelegramDialog(true)}>
-            <MessageCircle className="mr-2 h-4 w-4" />
-            Привязать Telegram
-          </DropdownMenuItem>
-          {isAdmin() && spreadsheetUrl && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleOpenSpreadsheet}>
-                <Table className="mr-2 h-4 w-4" />
-                Открыть таблицу
-                <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
-              </DropdownMenuItem>
-            </>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2">
+          <User className="h-4 w-4" />
+          <span className="hidden sm:inline">{session.name}</span>
+          {userIsAdmin && (
+            <Badge variant="secondary" className="ml-1 hidden sm:flex">
+              <Shield className="h-3 w-3 mr-1" />
+              Админ
+            </Badge>
           )}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
-            <LogOut className="mr-2 h-4 w-4" />
-            Выйти
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <TelegramLinkDialog 
-        open={showTelegramDialog} 
-        onClose={() => setShowTelegramDialog(false)} 
-      />
-    </>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>
+          <div className="flex flex-col">
+            <span>{session.name}</span>
+            <span className="text-xs text-muted-foreground font-normal">
+              {userIsAdmin ? 'Администратор' : 'Пользователь'}
+            </span>
+          </div>
+        </DropdownMenuLabel>
+        {userIsAdmin && spreadsheetUrl && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleOpenSpreadsheet}>
+              <Table className="mr-2 h-4 w-4" />
+              Открыть таблицу
+              <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
+            </DropdownMenuItem>
+          </>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+          <LogOut className="mr-2 h-4 w-4" />
+          Выйти
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
