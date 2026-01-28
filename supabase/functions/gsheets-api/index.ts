@@ -44,6 +44,37 @@ const SHEETS = {
   loginLogs: 'LoginLogs',
 };
 
+// Transliteration map for generating personal sheet names from Cyrillic names
+const TRANSLIT_MAP: Record<string, string> = {
+  'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e',
+  'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+  'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+  'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch', 'ъ': '',
+  'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya', ' ': '_'
+};
+
+/**
+ * Generate a personal sheet name from a user's name
+ * Example: "Александра Моисеева" -> "Tasks_Alexandra_Moiseeva"
+ */
+function getPersonalSheetName(userName: string): string {
+  const transliterated = userName.toLowerCase()
+    .split('')
+    .map(char => TRANSLIT_MAP[char] || char)
+    .join('')
+    .replace(/[^a-z0-9_]/g, '')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+  
+  // Capitalize each word
+  const formatted = transliterated
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('_');
+  
+  return `Tasks_${formatted}`;
+}
+
 interface ServiceAccountKey {
   client_email: string;
   private_key: string;
@@ -710,10 +741,21 @@ Deno.serve(async (req) => {
       }
       
       case 'tasks': {
-        const sheetName = SHEETS.tasks;
         const user = (req as any).user as AppUser;
         
-        // Ensure Tasks sheet exists with proper headers
+        // Determine which sheet to use based on task_scope
+        const requestedScope = data?.task_scope || 'digitization';
+        let sheetName: string;
+        
+        if (requestedScope === 'personal') {
+          // Use user's personal sheet
+          sheetName = getPersonalSheetName(user.name);
+        } else {
+          // Use main Tasks sheet for digitization
+          sheetName = SHEETS.tasks;
+        }
+        
+        // Ensure sheet exists with proper headers
         await ensureSheetExists(accessToken, sheetName, TASK_COLUMNS, spreadsheetId);
         
         if (action === 'list') {
@@ -723,7 +765,15 @@ Deno.serve(async (req) => {
             result = [];
           } else {
             const headers = rows[0];
-            result = rows.slice(1).map(row => rowToObject(row, headers));
+            // Map rows and ensure task_scope is set
+            result = rows.slice(1).map(row => {
+              const task = rowToObject(row, headers);
+              // Ensure task_scope is set for compatibility
+              if (!task.task_scope) {
+                task.task_scope = requestedScope;
+              }
+              return task;
+            });
           }
         } else if (action === 'create') {
           const now = new Date().toISOString();
@@ -785,7 +835,9 @@ Deno.serve(async (req) => {
           // - Admin can update any task
           // - Regular users can update status (drag-drop) for any task
           // - Regular users can edit only their own tasks (author matches)
-          const isStatusOnlyUpdate = Object.keys(data).length === 1 && 'status' in data;
+          // Note: task_scope is only used to determine the sheet, not considered a real update
+          const updateKeys = Object.keys(data).filter(k => k !== 'task_scope');
+          const isStatusOnlyUpdate = updateKeys.length === 1 && updateKeys[0] === 'status';
           const isOwnTask = existingTask.author === user.name;
           const canUpdate = user.role === 'admin' || isStatusOnlyUpdate || isOwnTask;
           
@@ -796,9 +848,8 @@ Deno.serve(async (req) => {
             );
           }
           
-          // SECURITY: Ignore author field from client
-          // Also ignore deprecated fields
-          const { author: _author, effect_type: _effect, digitization_section: _section, ...safeData } = data;
+          // SECURITY: Ignore author field, task_scope (used for sheet selection), and deprecated fields
+          const { author: _author, effect_type: _effect, digitization_section: _section, task_scope: _scope, ...safeData } = data;
           
           // Validate and normalize importance if being updated
           if (safeData.importance !== undefined) {
