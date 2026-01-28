@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Megaphone, Calendar, User, Save, X, Loader2, RefreshCw, Edit2, Eye } from 'lucide-react';
 import { LinkifiedText } from '@/components/LinkifiedText';
 import { formatAnnouncementText } from '@/lib/formatAnnouncementText';
+import { formatDateSafe } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface AnnouncementDetailModalProps {
@@ -121,7 +122,7 @@ export function AnnouncementDetailModal({
               <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
-                  <span>{new Date(announcement.created_at).toLocaleDateString('ru-RU')}</span>
+                  <span>{formatDateSafe(announcement.created_at)}</span>
                 </div>
                 {announcement.author && (
                   <div className="flex items-center gap-1">

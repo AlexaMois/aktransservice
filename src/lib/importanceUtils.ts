@@ -17,8 +17,8 @@ export function getImportanceStyles(importance: ImportanceRating | null | undefi
       };
     case 'important':
       return {
-        borderClass: 'border-l-4 border-l-orange-500',
-        badgeClass: 'bg-orange-500/15 text-orange-600 border-orange-500/30',
+        borderClass: 'border-l-4 border-l-yellow-500',
+        badgeClass: 'bg-yellow-500/15 text-yellow-600 border-yellow-500/30',
         label: '2',
       };
     case 'can_wait':

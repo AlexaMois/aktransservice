@@ -6,6 +6,7 @@ import { Megaphone, Calendar, User, ExternalLink, FileText } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton';
 import { LinkifiedText } from '@/components/LinkifiedText';
 import { AnnouncementDetailModal } from '@/components/AnnouncementDetailModal';
+import { formatDateSafe } from '@/lib/utils';
 
 interface AnnouncementsListProps {
   announcements: Task[];
@@ -105,7 +106,7 @@ function AnnouncementCard({ announcement, isNew, onClick }: AnnouncementCardProp
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2 text-xs sm:text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span>{new Date(announcement.created_at).toLocaleDateString('ru-RU')}</span>
+                <span>{formatDateSafe(announcement.created_at)}</span>
               </div>
               {announcement.author && (
                 <div className="flex items-center gap-1">

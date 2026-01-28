@@ -4,6 +4,7 @@ import { useTaskComments } from '@/hooks/useTasks';
 import { supabase } from '@/integrations/supabase/client';
 import { isAdmin } from '@/lib/auth/session';
 import { mapToTask } from '@/lib/typeGuards';
+import { formatDateSafe } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -390,7 +391,7 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
               <Calendar className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
               <div>
                 <p className="text-xs text-muted-foreground">Создано</p>
-                <p className="text-xs sm:text-sm font-medium">{new Date(task.created_at).toLocaleDateString('ru-RU')}</p>
+                <p className="text-xs sm:text-sm font-medium">{formatDateSafe(task.created_at)}</p>
               </div>
             </div>
             
@@ -398,7 +399,7 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
               <Clock className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
               <div>
                 <p className="text-xs text-muted-foreground">Обновлено</p>
-                <p className="text-xs sm:text-sm font-medium">{new Date(task.updated_at).toLocaleDateString('ru-RU')}</p>
+                <p className="text-xs sm:text-sm font-medium">{formatDateSafe(task.updated_at)}</p>
               </div>
             </div>
           </div>
@@ -578,7 +579,7 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-medium text-xs sm:text-sm">{comment.author}</span>
                     <span className="text-[10px] sm:text-xs text-muted-foreground">
-                      {new Date(comment.created_at).toLocaleDateString('ru-RU')}
+                      {formatDateSafe(comment.created_at)}
                     </span>
                   </div>
                   <p className="text-xs sm:text-sm text-foreground break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
