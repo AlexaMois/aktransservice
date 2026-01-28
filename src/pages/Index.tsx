@@ -164,16 +164,18 @@ const Index = () => {
   }, [activeTab, hasUnread, markAllAsRead, needsUserName]);
 
   // Apply filters (only to regular tasks, not announcements)
+  // NOTE: task_scope filter is TEMPORARILY DISABLED to show ALL tasks
   const filteredTasks = useMemo(() => {
     return regularTasks.filter((task) => {
-      // Task scope filter (digitization vs personal)
-      if (taskScope === 'digitization') {
-        if (task.task_scope !== 'digitization') return false;
-      } else {
-        // Personal mode: show only personal tasks owned by current user
-        if (task.task_scope !== 'personal') return false;
-        if (task.owner !== currentUserId) return false;
-      }
+      // TEMPORARILY DISABLED: Task scope filter
+      // All tasks are shown regardless of task_scope
+      // TODO: Re-enable after confirming all tasks display correctly
+      // if (taskScope === 'digitization') {
+      //   if (task.task_scope !== 'digitization') return false;
+      // } else {
+      //   if (task.task_scope !== 'personal') return false;
+      //   if (task.owner !== currentUserId) return false;
+      // }
 
       // Search filter
       if (searchQuery) {
@@ -221,8 +223,8 @@ const Index = () => {
     });
   }, [
     regularTasks,
-    taskScope,
-    currentUserId,
+    // taskScope, // TEMPORARILY DISABLED
+    // currentUserId, // TEMPORARILY DISABLED
     searchQuery,
     statusFilter,
     priorityFilter,
