@@ -13,6 +13,7 @@ export interface ParsedTask {
   description: string | null;
   task_type: TaskType;
   importance: ImportanceRating;
+  due_date: string | null;
 }
 
 interface UseVoiceRecorderOptions {
