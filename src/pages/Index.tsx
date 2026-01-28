@@ -166,10 +166,10 @@ const Index = () => {
   // Apply filters (only to regular tasks, not announcements)
   const filteredTasks = useMemo(() => {
     return regularTasks.filter((task) => {
-      // Task scope filter - ENABLED
+      // Task scope filter
       if (taskScope === 'digitization') {
-        // Show all digitization tasks
-        if (task.task_scope !== 'digitization') return false;
+        // Show digitization tasks (including legacy tasks with null/undefined scope)
+        if (task.task_scope === 'personal') return false;
       } else {
         // Show only personal tasks owned by current user
         if (task.task_scope !== 'personal') return false;
@@ -475,7 +475,6 @@ const Index = () => {
               ownerFilter={ownerFilter}
               onOwnerFilterChange={setOwnerFilter}
               owners={owners}
-              onAddClick={() => handleOpenAddModal("idea")}
               showOwnerFilter={isAdmin()}
             />
 
