@@ -1,11 +1,15 @@
 import { Laptop } from 'lucide-react';
 import { UserMenu } from './UserMenu';
+import { FeedbackModal } from './FeedbackModal';
+import { isAuthenticated } from '@/lib/auth/session';
 
 interface HeaderProps {
   onLogout?: () => void;
 }
 
 export function Header({ onLogout }: HeaderProps) {
+  const showFeedback = isAuthenticated();
+  
   return (
     <header className="bg-card border-b border-border sticky top-0 z-40">
       <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
@@ -24,7 +28,10 @@ export function Header({ onLogout }: HeaderProps) {
             </div>
           </div>
           
-          {onLogout && <UserMenu onLogout={onLogout} />}
+          <div className="flex items-center gap-1 sm:gap-2">
+            {showFeedback && <FeedbackModal />}
+            {onLogout && <UserMenu onLogout={onLogout} />}
+          </div>
         </div>
       </div>
     </header>
