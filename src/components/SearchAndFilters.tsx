@@ -36,6 +36,7 @@ interface SearchAndFiltersProps {
   onOwnerFilterChange: (owner: string) => void;
   owners: string[];
   onAddClick: () => void;
+  showOwnerFilter?: boolean;
 }
 
 export function SearchAndFilters({
@@ -55,6 +56,7 @@ export function SearchAndFilters({
   onOwnerFilterChange,
   owners,
   onAddClick,
+  showOwnerFilter = true,
 }: SearchAndFiltersProps) {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   
@@ -153,8 +155,8 @@ export function SearchAndFilters({
         </Select>
       </div>
 
-      {/* Owner filter */}
-      {owners.length > 0 && (
+      {/* Owner filter - only for admins */}
+      {showOwnerFilter && owners.length > 0 && (
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">Владелец</label>
           <Select value={ownerFilter || 'all'} onValueChange={(v) => onOwnerFilterChange(v === 'all' ? '' : v)}>
@@ -300,8 +302,8 @@ export function SearchAndFilters({
           </SelectContent>
         </Select>
 
-        {/* Owner filter */}
-        {owners.length > 0 && (
+        {/* Owner filter - only for admins */}
+        {showOwnerFilter && owners.length > 0 && (
           <Select value={ownerFilter || 'all'} onValueChange={(v) => onOwnerFilterChange(v === 'all' ? '' : v)}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Владелец" />

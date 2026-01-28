@@ -34,7 +34,7 @@ import { VoiceRecordButton } from "@/components/VoiceRecordButton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Map, Megaphone, Zap, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Map, Megaphone, Zap, ChevronLeft, ChevronRight, Mic, Plus } from "lucide-react";
 import { TaskCard } from "@/components/TaskCard";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -164,18 +164,17 @@ const Index = () => {
   }, [activeTab, hasUnread, markAllAsRead, needsUserName]);
 
   // Apply filters (only to regular tasks, not announcements)
-  // NOTE: task_scope filter is TEMPORARILY DISABLED to show ALL tasks
   const filteredTasks = useMemo(() => {
     return regularTasks.filter((task) => {
-      // TEMPORARILY DISABLED: Task scope filter
-      // All tasks are shown regardless of task_scope
-      // TODO: Re-enable after confirming all tasks display correctly
-      // if (taskScope === 'digitization') {
-      //   if (task.task_scope !== 'digitization') return false;
-      // } else {
-      //   if (task.task_scope !== 'personal') return false;
-      //   if (task.owner !== currentUserId) return false;
-      // }
+      // Task scope filter - ENABLED
+      if (taskScope === 'digitization') {
+        // Show all digitization tasks
+        if (task.task_scope !== 'digitization') return false;
+      } else {
+        // Show only personal tasks owned by current user
+        if (task.task_scope !== 'personal') return false;
+        if (task.owner !== currentUserId) return false;
+      }
 
       // Search filter
       if (searchQuery) {
@@ -223,8 +222,8 @@ const Index = () => {
     });
   }, [
     regularTasks,
-    // taskScope, // TEMPORARILY DISABLED
-    // currentUserId, // TEMPORARILY DISABLED
+    taskScope,
+    currentUserId,
     searchQuery,
     statusFilter,
     priorityFilter,
@@ -432,18 +431,31 @@ const Index = () => {
           </div>
 
           <TabsContent value="roadmap" className="space-y-4 mt-4">
-            {/* Task scope toggle and voice button */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            {/* Task scope toggle and add buttons */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
               <TaskScopeToggle value={taskScope} onChange={setTaskScope} />
               <div className="flex items-center gap-2">
-                <VoiceRecordButton 
-                  isRecording={isRecording}
-                  isProcessing={isProcessing}
+                <Button
                   onClick={toggleRecording}
-                />
-                <span className="text-sm text-muted-foreground">
-                  {isRecording ? "Говорите..." : isProcessing ? "Обработка..." : "Голосом"}
-                </span>
+                  disabled={isProcessing}
+                  className={isRecording ? "animate-pulse" : ""}
+                >
+                  {isProcessing ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : isRecording ? (
+                    <span className="relative flex h-4 w-4 mr-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-4 w-4 bg-destructive"></span>
+                    </span>
+                  ) : (
+                    <Mic className="h-4 w-4 mr-2" />
+                  )}
+                  {isRecording ? "Остановить" : "Голосом"}
+                </Button>
+                <Button onClick={() => handleOpenAddModal("idea")}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Текстом
+                </Button>
               </div>
             </div>
 
@@ -464,6 +476,7 @@ const Index = () => {
               onOwnerFilterChange={setOwnerFilter}
               owners={owners}
               onAddClick={() => handleOpenAddModal("idea")}
+              showOwnerFilter={isAdmin()}
             />
 
             {loading ? (
