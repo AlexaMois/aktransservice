@@ -102,6 +102,7 @@ const Index = () => {
     onSwipeLeft: goToNextStatus,
     onSwipeRight: goToPrevStatus,
     minSwipeDistance: 50,
+    disabled: activeDragId !== null,
   });
 
   // Get unique owners for filter dropdown
@@ -467,7 +468,7 @@ const Index = () => {
                     {/* Swipeable task list with draggable cards */}
                     <div 
                       className="space-y-3 min-h-[200px]" 
-                      {...(activeDragId ? {} : swipeHandlers)}
+                      {...swipeHandlers}
                     >
                       {tasksByStatus[mobileStatusFilter].map((task) => (
                         <DraggableTaskCard 
