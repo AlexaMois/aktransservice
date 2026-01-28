@@ -1,8 +1,6 @@
 import { Task, TaskComment, Announcement } from '@/types/task';
 import { clearSession, getSession } from '@/lib/auth/session';
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+import { edgeFetch, base64UrlEncodeUtf8 } from '@/shared/api/edgeFetch';
 
 // Google Sheets mode is now always enabled since we have GOOGLE_SHEETS_ID secret configured
 export const isGSheetsMode = () => {
@@ -17,23 +15,10 @@ export const setGSheetsId = (id: string) => {
   localStorage.setItem('GOOGLE_SHEETS_ID', id);
 };
 
-function base64UrlEncodeUtf8(input: string): string {
-  const bytes = new TextEncoder().encode(input);
-  let binary = '';
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-}
-
 async function callGSheetsAPI(action: string, entity: string, data?: any, id?: string) {
   const session = getSession();
   
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-  };
+  const headers: Record<string, string> = {};
   
   // Add session header for authenticated requests
   if (session) {
@@ -42,7 +27,7 @@ async function callGSheetsAPI(action: string, entity: string, data?: any, id?: s
     headers['X-App-Session'] = base64UrlEncodeUtf8(JSON.stringify(session));
   }
   
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/gsheets-api`, {
+  const response = await edgeFetch('/gsheets-api', {
     method: 'POST',
     headers,
     body: JSON.stringify({ action, entity, data, id }),
@@ -164,12 +149,8 @@ export const gsheetsReadStatusApi = {
 
 // Initialize Google Sheets with migration
 export async function initGoogleSheets(existingTasks: Task[], existingAnnouncements: Announcement[]): Promise<string> {
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/gsheets-init`, {
+  const response = await edgeFetch('/gsheets-init', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    },
     body: JSON.stringify({ existingTasks, existingAnnouncements }),
   });
   
