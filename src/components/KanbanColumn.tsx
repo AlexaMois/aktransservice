@@ -1,4 +1,4 @@
-import { Task, TaskStatus, STATUS_LABELS } from '@/types/task';
+import { Task, TaskStatus, STATUS_LABELS } from '@/entities/task';
 import { TaskCard } from './TaskCard';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';

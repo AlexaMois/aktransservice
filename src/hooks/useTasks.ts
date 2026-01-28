@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Task, TaskStatus, Announcement, DigitizationQueueItem, NotAutomatingItem, ExperimentItem, TaskComment } from '@/types/task';
+import { Task, TaskStatus, TaskComment } from '@/entities/task';
+import { Announcement, DigitizationQueueItem, NotAutomatingItem, ExperimentItem } from '@/types/task';
 import { normalizeTaskFields } from '@/lib/textNormalize';
 
 // Re-export GSheets hooks for use in components

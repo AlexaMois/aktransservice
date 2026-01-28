@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { Task, TaskStatus } from '@/types/task';
+import { Task, TaskStatus } from '@/entities/task';
 import { DraggableTaskCard } from './DraggableTaskCard';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';

@@ -2,7 +2,7 @@
  * Task API module - centralized task data operations
  */
 
-import { Task, TaskStatus } from '@/types/task';
+import { Task, TaskStatus } from './model';
 import { supabase } from '@/integrations/supabase/client';
 import { gsheetsTasksApi, isGSheetsMode } from '@/lib/api/gsheets';
 

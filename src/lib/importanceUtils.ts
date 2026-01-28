@@ -1,4 +1,4 @@
-import { ImportanceRating } from '@/types/task';
+import { ImportanceRating } from '@/entities/task';
 
 /**
  * Get visual styles for importance badge and card border

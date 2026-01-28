@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TaskStatus, TaskPriority, TaskType, ImportanceRating, Department, STATUS_LABELS, PRIORITY_LABELS, TASK_TYPE_LABELS, IMPORTANCE_LABELS, DEPARTMENT_LABELS } from '@/types/task';
+import { TaskStatus, TaskPriority, TaskType, ImportanceRating, Department, STATUS_LABELS, PRIORITY_LABELS, TASK_TYPE_LABELS, IMPORTANCE_LABELS, DEPARTMENT_LABELS } from '@/entities/task';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {

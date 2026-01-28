@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Task } from '@/types/task';
+import { Task } from '@/entities/task';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Megaphone, Calendar, User, ExternalLink, FileText } from 'lucide-react';

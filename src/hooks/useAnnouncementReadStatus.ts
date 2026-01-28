@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Task } from '@/types/task';
+import { Task } from '@/entities/task';
 import { gsheetsReadStatusApi, ReadStatus, isGSheetsMode } from '@/lib/api/gsheets';
 import { getSession, isAuthenticated } from '@/lib/auth/session';
 

@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { Task, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from '@/types/task';
+import { Task, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from '@/entities/task';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Lightbulb, ListTodo, Megaphone, HelpCircle } from 'lucide-react';
