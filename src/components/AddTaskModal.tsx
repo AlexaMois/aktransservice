@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TaskType, ImportanceRating, Department, TASK_TYPE_LABELS, IMPORTANCE_LABELS, DEPARTMENT_LABELS } from '@/entities/task';
+import { isTaskType } from '@/lib/typeGuards';
 import { getUserName, isAdmin } from '@/lib/auth/session';
 import {
   Dialog,
@@ -92,10 +93,12 @@ export function AddTaskModal({ open, onClose, onSubmit, defaultTaskType = 'idea'
   // Only admins can create announcements
   const canCreateAnnouncement = userIsAdmin;
   // Filter available task types based on role
-  const availableTaskTypes = Object.keys(TASK_TYPE_LABELS).filter(type => {
-    if (type === 'announcement') return canCreateAnnouncement;
-    return true;
-  }) as TaskType[];
+  const availableTaskTypes: TaskType[] = (Object.keys(TASK_TYPE_LABELS) as string[])
+    .filter((type): type is TaskType => {
+      if (!isTaskType(type)) return false;
+      if (type === 'announcement') return canCreateAnnouncement;
+      return true;
+    });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

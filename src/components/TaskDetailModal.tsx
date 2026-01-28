@@ -3,6 +3,7 @@ import { Task, TaskStatus, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS, IM
 import { useTaskComments } from '@/hooks/useTasks';
 import { supabase } from '@/integrations/supabase/client';
 import { isAdmin } from '@/lib/auth/session';
+import { mapToTask } from '@/lib/typeGuards';
 import {
   Dialog,
   DialogContent,
@@ -209,10 +210,7 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
       toast.success('Лог сохранён');
       
       if (onTaskUpdate) {
-        const updatedTask: Task = {
-          ...data,
-          summary: data.summary || data.description || '',
-        };
+        const updatedTask = mapToTask(data as Record<string, unknown>);
         onTaskUpdate(updatedTask);
       }
     } catch (error) {
