@@ -5,15 +5,14 @@
 import { LoginRequest, LoginResponse } from './types';
 import { edgeFetch } from '@/shared/api/edgeFetch';
 
-export async function loginWithAccessCode(request: LoginRequest): Promise<LoginResponse> {
+export async function loginWithUserId(request: LoginRequest): Promise<LoginResponse> {
   const response = await edgeFetch('/gsheets-api', {
     method: 'POST',
     body: JSON.stringify({
       action: 'login',
       entity: 'users',
       data: {
-        name: request.name.trim(),
-        access_code: request.access_code.trim(),
+        user_id: request.user_id.trim(),
       },
     }),
   });
@@ -24,6 +23,7 @@ export async function loginWithAccessCode(request: LoginRequest): Promise<LoginR
     return {
       success: false,
       error: result.error || 'Ошибка входа',
+      code: result.code,
     };
   }
 

@@ -54,9 +54,8 @@ interface AppUser {
   user_id: string;
   name: string;
   role: 'admin' | 'user';
-  access_code: string;
+  telegram_id: string;
   active: boolean;
-  created_at: string;
 }
 
 interface UserRoleRow {
@@ -76,7 +75,6 @@ interface UserSession {
   user_id: string;
   name: string;
   role: 'admin' | 'user';
-  access_code: string;
 }
 
 async function getAccessToken(serviceAccountKey: ServiceAccountKey): Promise<string> {
@@ -148,7 +146,7 @@ const ANNOUNCEMENT_COLUMNS = [
 
 const COMMENT_COLUMNS = ['id', 'task_id', 'author', 'text', 'created_at'];
 const READ_STATUS_COLUMNS = ['id', 'announcement_id', 'user_id', 'read_at'];
-const USER_COLUMNS = ['user_id', 'name', 'role', 'access_code', 'active', 'created_at'];
+const USER_COLUMNS = ['user_id', 'name', 'role', 'telegram_id', 'active'];
 const USER_ROLE_COLUMNS = ['user_id', 'role', 'created_at'];
 const ACCESS_CODE_COLUMNS = ['code', 'role', 'active', 'created_at'];
 const LOGIN_LOG_COLUMNS = ['id', 'user_id', 'name', 'role', 'timestamp'];
@@ -403,9 +401,9 @@ async function validateSession(
     const json = raw.startsWith('{') ? raw : decodeBase64UrlUtf8(raw);
 
     const session: UserSession = JSON.parse(json);
-    if (!session.user_id || !session.access_code) return null;
+    if (!session.user_id) return null;
     
-    // Verify user exists in Users sheet
+    // Verify user exists in Users sheet (whitelist check)
     await ensureSheetExists(accessToken, SHEETS.users, USER_COLUMNS, spreadsheetId);
     const rows = await getSheetData(accessToken, SHEETS.users, spreadsheetId);
     
@@ -413,14 +411,12 @@ async function validateSession(
     
     const headers = rows[0];
     const userIdIndex = idx(headers, 'user_id');
-    const accessCodeIndex = idx(headers, 'access_code');
     const activeIndex = idx(headers, 'active');
     
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       if (
         row[userIdIndex] === session.user_id && 
-        row[accessCodeIndex] === session.access_code &&
         (row[activeIndex] === 'true' || row[activeIndex] === 'TRUE')
       ) {
         const user = rowToObject(row, headers) as AppUser;
@@ -453,12 +449,8 @@ function requiresAuth(action: string, entity: string): boolean {
   if (entity === 'users' && action === 'login') {
     return false;
   }
-  // Seed action requires special handling (secret key instead of session)
-  if (entity === 'users' && action === 'seed') {
-    return false;
-  }
-  // Reset action requires special handling (secret key instead of session)
-  if (entity === 'users' && action === 'reset') {
+  // Init-whitelist action requires special handling (secret key instead of session)
+  if (entity === 'users' && action === 'init-whitelist') {
     return false;
   }
   // Share action can use secret key OR admin session
@@ -525,13 +517,12 @@ Deno.serve(async (req) => {
         await ensureSheetExists(accessToken, sheetName, USER_COLUMNS, spreadsheetId);
         
         if (action === 'login') {
-          // Handle login: find user by access_code
-          const accessCode = data?.access_code?.trim();
-          const providedName = data?.name?.trim();
+          // WHITELIST LOGIN: only pre-approved users can login by user_id
+          const userId = data?.user_id?.trim();
           
-          if (!accessCode) {
+          if (!userId) {
             return new Response(
-              JSON.stringify({ success: false, error: 'Код доступа не указан' }),
+              JSON.stringify({ success: false, error: 'ID пользователя не указан', code: 'MISSING_USER_ID' }),
               { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           }
@@ -540,97 +531,42 @@ Deno.serve(async (req) => {
           
           if (rows.length <= 1) {
             return new Response(
-              JSON.stringify({ success: false, error: 'Код не подошёл. Проверьте и попробуйте снова.' }),
-              { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              JSON.stringify({ success: false, error: 'Доступ запрещён', code: 'ACCESS_DENIED' }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           }
           
           const headers = rows[0];
-          const accessCodeIndex = idx(headers, 'access_code');
-          const activeIndex = idx(headers, 'active');
           const userIdIndex = idx(headers, 'user_id');
-          const nameIndex = idx(headers, 'name');
+          const activeIndex = idx(headers, 'active');
           
           let foundUser: AppUser | null = null;
-          let foundRowIndex = -1;
           
           for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             if (
-              row[accessCodeIndex] === accessCode &&
+              row[userIdIndex] === userId &&
               (row[activeIndex] === 'true' || row[activeIndex] === 'TRUE')
             ) {
               foundUser = rowToObject(row, headers) as AppUser;
-              foundRowIndex = i;
               break;
             }
           }
-
-          // If code not found in Users, allow "team code" from AccessCodes sheet
+          
+          // NO FALLBACK - if user not in whitelist, deny access
           if (!foundUser) {
-            const entry = await getAccessCodeEntry(accessToken, spreadsheetId, accessCode);
-            if (!entry) {
-              return new Response(
-                JSON.stringify({ success: false, error: 'Код не подошёл. Проверьте и попробуйте снова.' }),
-                { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              );
-            }
-
-            if (!providedName) {
-              return new Response(
-                JSON.stringify({ success: false, error: 'Введите ваше имя' }),
-                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              );
-            }
-
-            // Create a new user record for this name under the shared code
-            const now = new Date().toISOString();
-            const newUser: AppUser = {
-              user_id: crypto.randomUUID(),
-              name: providedName,
-              role: 'user',
-              access_code: accessCode,
-              active: true,
-              created_at: now,
-            };
-
-            await appendRow(accessToken, sheetName, objectToRow(newUser, USER_COLUMNS), spreadsheetId);
-
-            // Store role separately (authoritative)
-            await ensureSheetExists(accessToken, SHEETS.userRoles, USER_ROLE_COLUMNS, spreadsheetId);
-            const roleRow: UserRoleRow = {
-              user_id: newUser.user_id,
-              role: entry.role || 'user',
-              created_at: now,
-            };
-            await appendRow(accessToken, SHEETS.userRoles, objectToRow(roleRow, USER_ROLE_COLUMNS), spreadsheetId);
-
-            newUser.role = roleRow.role;
-            
-            // Log first login for new user
-            await logFirstLogin(accessToken, spreadsheetId, newUser);
-            
-            result = newUser;
-            break;
+            return new Response(
+              JSON.stringify({ success: false, error: 'Доступ запрещён. Обратитесь к администратору.', code: 'ACCESS_DENIED' }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
           }
           
-          // If user provided a name and it's different, update it
-          if (providedName && providedName !== foundUser.name) {
-            const updatedUser = { ...foundUser, name: providedName };
-            const row = objectToRow(updatedUser, USER_COLUMNS);
-            await updateRow(accessToken, sheetName, foundRowIndex + 1, row, spreadsheetId);
-            foundUser.name = providedName;
+          // SECURITY: load role from Users sheet directly (role column)
+          // Also check UserRoles sheet for overrides
+          const roleFromSheet = await getRoleForUser(accessToken, spreadsheetId, foundUser.user_id);
+          if (roleFromSheet) {
+            foundUser.role = roleFromSheet;
           }
-          
-          // Generate user_id if not exists
-          if (!foundUser.user_id) {
-            foundUser.user_id = crypto.randomUUID();
-            const row = objectToRow(foundUser, USER_COLUMNS);
-            await updateRow(accessToken, sheetName, foundRowIndex + 1, row, spreadsheetId);
-          }
-
-          // SECURITY: load role from separate sheet
-          foundUser.role = await getRoleForUser(accessToken, spreadsheetId, foundUser.user_id);
           
           // Log first login (only if user hasn't logged before)
           const hasLogged = await hasUserLoggedBefore(accessToken, spreadsheetId, foundUser.user_id);
@@ -639,8 +575,8 @@ Deno.serve(async (req) => {
           }
           
           result = foundUser;
-        } else if (action === 'seed') {
-          // Seed action: create initial admin user
+        } else if (action === 'init-whitelist') {
+          // Initialize whitelist with predefined users
           // Requires APP_SECRET_KEY header for authorization
           const secretKey = req.headers.get('X-App-Secret-Key');
           const expectedKey = Deno.env.get('APP_SECRET_KEY');
@@ -652,84 +588,7 @@ Deno.serve(async (req) => {
             );
           }
           
-          const adminAccessCode = data?.admin_access_code;
-          const adminName = data?.admin_name || 'Администратор';
-          const staffAccessCode = data?.user_access_code;
-          
-          if (!adminAccessCode) {
-            return new Response(
-              JSON.stringify({ success: false, error: 'Admin access code required' }),
-              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-          
-          // Check if admin user already exists (authoritative: UserRoles)
-          await ensureSheetExists(accessToken, SHEETS.userRoles, USER_ROLE_COLUMNS, spreadsheetId);
-          const roleRows = await getSheetData(accessToken, SHEETS.userRoles, spreadsheetId);
-          let adminExists = false;
-          if (roleRows.length > 1) {
-            const roleHeaders = roleRows[0];
-            const roleIndex = idx(roleHeaders, 'role');
-            for (let i = 1; i < roleRows.length; i++) {
-              if (roleRows[i][roleIndex] === 'admin') {
-                adminExists = true;
-                break;
-              }
-            }
-          }
-          
-          if (adminExists) {
-            return new Response(
-              JSON.stringify({ success: false, error: 'Admin user already exists' }),
-              { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-          
-          // Create admin user
-          const now = new Date().toISOString();
-          const adminUser = {
-            user_id: crypto.randomUUID(),
-            name: adminName,
-            role: 'admin' as const,
-            access_code: adminAccessCode,
-            active: true,
-            created_at: now,
-          };
-          
-          const row = objectToRow(adminUser, USER_COLUMNS);
-          await appendRow(accessToken, sheetName, row, spreadsheetId);
-
-          // Authoritative role row
-          const adminRoleRow: UserRoleRow = { user_id: adminUser.user_id, role: 'admin', created_at: now };
-          await appendRow(accessToken, SHEETS.userRoles, objectToRow(adminRoleRow, USER_ROLE_COLUMNS), spreadsheetId);
-
-          // Optional: seed shared staff code
-          if (staffAccessCode) {
-            await ensureSheetExists(accessToken, SHEETS.accessCodes, ACCESS_CODE_COLUMNS, spreadsheetId);
-            const codes = await getSheetData(accessToken, SHEETS.accessCodes, spreadsheetId);
-            const codeHeaders = codes.length > 0 ? codes[0] : ACCESS_CODE_COLUMNS;
-            const codeIndex = idx(codeHeaders, 'code');
-            const already = codes.slice(1).some(r => r[codeIndex] === staffAccessCode);
-            if (!already) {
-              const entry: AccessCodeEntry = { code: staffAccessCode, role: 'user', active: true, created_at: now };
-              await appendRow(accessToken, SHEETS.accessCodes, objectToRow(entry, ACCESS_CODE_COLUMNS), spreadsheetId);
-            }
-          }
-          
-          result = { message: 'Admin user created successfully', user_id: adminUser.user_id };
-        } else if (action === 'reset') {
-          // Reset action: clear and recreate Users sheet (requires APP_SECRET_KEY)
-          const secretKey = req.headers.get('X-App-Secret-Key');
-          const expectedKey = Deno.env.get('APP_SECRET_KEY');
-          
-          if (!expectedKey || secretKey !== expectedKey) {
-            return new Response(
-              JSON.stringify({ success: false, error: 'Invalid secret key' }),
-              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-          
-          // Clear Users sheet
+          // Clear existing Users sheet
           const clearUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A:Z:clear`;
           await fetch(clearUrl, {
             method: 'POST',
@@ -739,7 +598,19 @@ Deno.serve(async (req) => {
           // Write headers
           await updateRow(accessToken, sheetName, 1, USER_COLUMNS, spreadsheetId);
           
-          // Clear UserRoles sheet
+          // Predefined whitelist users
+          const whitelistUsers: AppUser[] = [
+            { user_id: '306664248', name: 'Александра Моисеева', role: 'admin', telegram_id: '306664248', active: true },
+            { user_id: '1650315171', name: 'Арсений Пахомов', role: 'user', telegram_id: '1650315171', active: true },
+            { user_id: '1078606712', name: 'Александра Моисеева (Инженер ИИ)', role: 'user', telegram_id: '1078606712', active: true },
+          ];
+          
+          // Add each user to the sheet
+          for (const user of whitelistUsers) {
+            await appendRow(accessToken, sheetName, objectToRow(user, USER_COLUMNS), spreadsheetId);
+          }
+          
+          // Setup UserRoles sheet
           await ensureSheetExists(accessToken, SHEETS.userRoles, USER_ROLE_COLUMNS, spreadsheetId);
           const clearRolesUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEETS.userRoles}!A:Z:clear`;
           await fetch(clearRolesUrl, {
@@ -748,50 +619,14 @@ Deno.serve(async (req) => {
           });
           await updateRow(accessToken, SHEETS.userRoles, 1, USER_ROLE_COLUMNS, spreadsheetId);
           
-          // Clear AccessCodes sheet
-          await ensureSheetExists(accessToken, SHEETS.accessCodes, ACCESS_CODE_COLUMNS, spreadsheetId);
-          const clearCodesUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${SHEETS.accessCodes}!A:Z:clear`;
-          await fetch(clearCodesUrl, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${accessToken}` },
-          });
-          await updateRow(accessToken, SHEETS.accessCodes, 1, ACCESS_CODE_COLUMNS, spreadsheetId);
-          
-          // Now create admin
-          const adminAccessCode = data?.admin_access_code;
-          const adminName = data?.admin_name || 'Администратор';
-          const staffAccessCode = data?.user_access_code;
-          
-          if (!adminAccessCode) {
-            return new Response(
-              JSON.stringify({ success: false, error: 'Admin access code required' }),
-              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-          
+          // Add role entries
           const now = new Date().toISOString();
-          const adminUser = {
-            user_id: crypto.randomUUID(),
-            name: adminName,
-            role: 'admin' as const,
-            access_code: adminAccessCode,
-            active: true,
-            created_at: now,
-          };
-          
-          await appendRow(accessToken, sheetName, objectToRow(adminUser, USER_COLUMNS), spreadsheetId);
-          
-          // Authoritative role row
-          const adminRoleRow: UserRoleRow = { user_id: adminUser.user_id, role: 'admin', created_at: now };
-          await appendRow(accessToken, SHEETS.userRoles, objectToRow(adminRoleRow, USER_ROLE_COLUMNS), spreadsheetId);
-          
-          // Create staff code
-          if (staffAccessCode) {
-            const entry: AccessCodeEntry = { code: staffAccessCode, role: 'user', active: true, created_at: now };
-            await appendRow(accessToken, SHEETS.accessCodes, objectToRow(entry, ACCESS_CODE_COLUMNS), spreadsheetId);
+          for (const user of whitelistUsers) {
+            const roleRow: UserRoleRow = { user_id: user.user_id, role: user.role, created_at: now };
+            await appendRow(accessToken, SHEETS.userRoles, objectToRow(roleRow, USER_ROLE_COLUMNS), spreadsheetId);
           }
           
-          result = { message: 'Users reset and admin created successfully', user_id: adminUser.user_id };
+          result = { message: 'Whitelist initialized with predefined users', count: whitelistUsers.length };
         } else if (action === 'share') {
           // Share spreadsheet with an email
           // Requires EITHER APP_SECRET_KEY OR authenticated admin session

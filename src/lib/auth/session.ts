@@ -7,7 +7,6 @@ export interface UserSession {
   user_id: string;
   name: string;
   role: 'admin' | 'user';
-  access_code: string;
 }
 
 const SESSION_KEY = 'app_user_session';
