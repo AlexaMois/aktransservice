@@ -1,7 +1,5 @@
 import { getSession } from '@/lib/auth/session';
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+import { edgeFetch, base64UrlEncodeUtf8 } from '@/shared/api/edgeFetch';
 
 export interface UploadResult {
   success: boolean;
@@ -10,16 +8,6 @@ export interface UploadResult {
   folderId?: string;
   folderUrl?: string;
   error?: string;
-}
-
-function base64UrlEncodeUtf8(input: string): string {
-  const bytes = new TextEncoder().encode(input);
-  let binary = '';
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
 }
 
 export async function uploadFileToGDrive(
@@ -37,15 +25,15 @@ export async function uploadFileToGDrive(
   formData.append('taskTitle', taskTitle);
   
   const headers: Record<string, string> = {
-    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
     'X-App-Session': base64UrlEncodeUtf8(JSON.stringify(session)),
   };
 
   try {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/upload-to-gdrive`, {
+    const response = await edgeFetch('/upload-to-gdrive', {
       method: 'POST',
       headers,
       body: formData,
+      skipContentType: true, // FormData sets its own Content-Type with boundary
     });
     
     const data = await response.json();
