@@ -1,3 +1,10 @@
+/**
+ * Google Sheets Tasks Hook - SINGLE SOURCE OF TRUTH
+ * 
+ * All task data flows through this hook:
+ * useGSheetsTasks → taskApi → gsheetsTasksApi → /gsheets-api → Google Sheets
+ */
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Task, TaskStatus, TaskComment } from '@/entities/task';
 import { Announcement } from '@/types/task';
@@ -10,11 +17,12 @@ import * as taskApi from '@/entities/task/api';
 // Polling interval in milliseconds (30 seconds by default)
 const DEFAULT_POLLING_INTERVAL = 30000;
 
-// Use Google Sheets if configured, otherwise fall back to Supabase
+/**
+ * Main hook for task management - ALL tasks come from Google Sheets
+ */
 export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enabled = true) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const gsheetsEnabled = isGSheetsMode();
   const isInitialLoad = useRef(true);
   
   const { 
@@ -25,9 +33,10 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
     setSyncCallback 
   } = useSyncStatus({ 
     pollingInterval, 
-    enabled: (gsheetsEnabled as boolean) && enabled,
+    enabled: enabled,
   });
 
+  // Fetch all tasks from Google Sheets
   const fetchTasks = useCallback(async (showLoading = true) => {
     if (!enabled) {
       setTasks([]);
@@ -40,9 +49,10 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
     }
     try {
       const data = await taskApi.fetchTasks();
+      // Replace state entirely with Google Sheets data - NO merging
       setTasks(data);
     } catch (error) {
-      console.error('Error fetching tasks:', error);
+      console.error('Error fetching tasks from Google Sheets:', error);
       throw error; // Re-throw for sync status tracking
     } finally {
       setLoading(false);
@@ -61,10 +71,12 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
     fetchTasks(true);
   }, [enabled, fetchTasks]);
 
+  // Add task and refetch to ensure consistency
   const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'status'>) => {
     try {
       const newTask = await taskApi.createTask(task);
-      setTasks((prev) => [newTask, ...prev]);
+      // IMPORTANT: Refetch from Google Sheets to ensure state is in sync
+      await fetchTasks(false);
       return newTask;
     } catch (error) {
       console.error('Error adding task:', error);
@@ -72,9 +84,11 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
     }
   };
 
+  // Update task in Google Sheets
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
     try {
       const updatedTask = await taskApi.updateTask(taskId, updates);
+      // Update local state immediately for responsiveness
       setTasks((prev) => prev.map((t) => (t.id === taskId ? updatedTask : t)));
       return updatedTask;
     } catch (error) {
@@ -83,6 +97,7 @@ export function useGSheetsTasks(pollingInterval = DEFAULT_POLLING_INTERVAL, enab
     }
   };
 
+  // Delete task from Google Sheets
   const deleteTask = async (taskId: string) => {
     try {
       await taskApi.deleteTask(taskId);

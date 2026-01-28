@@ -8,6 +8,16 @@ import { Announcement, DigitizationQueueItem, NotAutomatingItem, ExperimentItem 
 
 // Valid enum values for validation
 const VALID_TASK_STATUSES: TaskStatus[] = ['ideas', 'planned', 'in-progress', 'review', 'completed'];
+
+// Status aliases mapping for normalization (legacy → canonical)
+const STATUS_ALIASES: Record<string, TaskStatus> = {
+  'idea': 'ideas',
+  'plan': 'planned',
+  'doing': 'in-progress',
+  'in_progress': 'in-progress',
+  'checking': 'review',
+  'done': 'completed',
+};
 const VALID_TASK_TYPES: TaskType[] = ['idea', 'problem', 'task', 'announcement', 'question'];
 const VALID_PRIORITIES: TaskPriority[] = ['high', 'medium', 'low'];
 const VALID_IMPORTANCE: ImportanceRating[] = ['critical', 'important', 'can_wait'];
@@ -27,6 +37,28 @@ function isObject(value: unknown): value is Record<string, unknown> {
  */
 export function isTaskStatus(value: unknown): value is TaskStatus {
   return typeof value === 'string' && VALID_TASK_STATUSES.includes(value as TaskStatus);
+}
+
+/**
+ * Normalize status value to canonical TaskStatus
+ * Handles legacy aliases like 'idea' → 'ideas', 'done' → 'completed'
+ */
+export function normalizeTaskStatus(value: unknown): TaskStatus {
+  if (typeof value !== 'string') return 'ideas';
+  
+  // Check if already valid
+  if (VALID_TASK_STATUSES.includes(value as TaskStatus)) {
+    return value as TaskStatus;
+  }
+  
+  // Check aliases
+  const lowercaseValue = value.toLowerCase();
+  if (lowercaseValue in STATUS_ALIASES) {
+    return STATUS_ALIASES[lowercaseValue];
+  }
+  
+  // Default to 'ideas'
+  return 'ideas';
 }
 
 /**
@@ -166,6 +198,7 @@ export function asString(value: unknown): string {
 
 /**
  * Map raw database row to Task with validation
+ * Uses normalizeTaskStatus to handle legacy status values
  */
 export function mapToTask(row: Record<string, unknown>): Task {
   return {
@@ -174,7 +207,7 @@ export function mapToTask(row: Record<string, unknown>): Task {
     summary: asString(row.summary) || asString(row.description),
     description: row.description as string | null | undefined,
     task_type: isTaskType(row.task_type) ? row.task_type : 'idea',
-    status: isTaskStatus(row.status) ? row.status : 'ideas',
+    status: normalizeTaskStatus(row.status),
     priority: isTaskPriority(row.priority) ? row.priority : 'medium',
     effect_type: isEffectType(row.effect_type) ? row.effect_type : null,
     importance: isImportanceRating(row.importance) ? row.importance : null,
