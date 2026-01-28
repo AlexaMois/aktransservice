@@ -291,6 +291,8 @@ const Index = () => {
       result_before: null,
       result_action: null,
       result_after: null,
+      due_date: null,
+      reminder_sent: false,
     });
   };
 
@@ -320,6 +322,8 @@ const Index = () => {
       result_before: null,
       result_action: null,
       result_after: null,
+      due_date: parsed.due_date,
+      reminder_sent: false,
     });
   }, [addTask, taskScope, currentUserId]);
 

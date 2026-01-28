@@ -194,6 +194,8 @@ export function mapToTask(row: Record<string, unknown>): Task {
     result_action: row.result_action as string | null | undefined,
     result_after: row.result_after as string | null | undefined,
     execution_log: row.execution_log as string | null | undefined,
+    due_date: row.due_date as string | null | undefined,
+    reminder_sent: typeof row.reminder_sent === 'boolean' ? row.reminder_sent : false,
     created_at: asString(row.created_at),
     updated_at: asString(row.updated_at),
   };

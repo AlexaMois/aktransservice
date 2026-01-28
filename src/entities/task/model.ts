@@ -40,6 +40,8 @@ export interface Task {
   result_action?: string | null;
   result_after?: string | null;
   execution_log?: string | null;
+  due_date?: string | null;
+  reminder_sent?: boolean;
   created_at: string;
   updated_at: string;
 }
