@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Task, TaskStatus } from '@/entities/task';
-import { Announcement, TaskComment } from '@/types/task';
+import { Task, TaskStatus, TaskComment } from '@/entities/task';
+import { Announcement } from '@/types/task';
 import { gsheetsAnnouncementsApi, gsheetsCommentsApi, isGSheetsMode } from '@/lib/api/gsheets';
 import { supabase } from '@/integrations/supabase/client';
 import { useSyncStatus } from './useSyncStatus';
+import { mapToAnnouncement } from '@/lib/typeGuards';
 import * as taskApi from '@/entities/task/api';
 
 // Polling interval in milliseconds (30 seconds by default)
@@ -130,10 +131,16 @@ export function useGSheetsAnnouncements() {
           .order('published_at', { ascending: false });
 
         if (error) throw error;
-        setAnnouncements(data as Announcement[]);
+        if (data) {
+          const mapped = data.map(row => mapToAnnouncement(row as Record<string, unknown>));
+          setAnnouncements(mapped);
+        } else {
+          setAnnouncements([]);
+        }
       }
     } catch (error) {
       console.error('Error fetching announcements:', error);
+      setAnnouncements([]);
     } finally {
       setLoading(false);
     }
@@ -152,7 +159,10 @@ export function useGSheetsComments(taskId: string) {
   const gsheetsEnabled = isGSheetsMode();
 
   const fetchComments = useCallback(async () => {
-    if (!taskId) return;
+    if (!taskId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       if (gsheetsEnabled) {
@@ -166,10 +176,22 @@ export function useGSheetsComments(taskId: string) {
           .order('created_at', { ascending: true });
 
         if (error) throw error;
-        setComments(data as TaskComment[]);
+        if (data) {
+          const mapped: TaskComment[] = data.map(item => ({
+            id: item.id,
+            task_id: item.task_id,
+            author: item.author,
+            text: item.text,
+            created_at: item.created_at,
+          }));
+          setComments(mapped);
+        } else {
+          setComments([]);
+        }
       }
     } catch (error) {
       console.error('Error fetching comments:', error);
+      setComments([]);
     } finally {
       setLoading(false);
     }
@@ -179,7 +201,7 @@ export function useGSheetsComments(taskId: string) {
     fetchComments();
   }, [fetchComments]);
 
-  const addComment = async (author: string, text: string) => {
+  const addComment = async (author: string, text: string): Promise<TaskComment> => {
     try {
       if (gsheetsEnabled) {
         // Note: author is now set by server from session
@@ -201,9 +223,18 @@ export function useGSheetsComments(taskId: string) {
           .single();
 
         if (error) throw error;
+        if (!data) throw new Error('No data returned from insert');
 
-        setComments((prev) => [...prev, data as TaskComment]);
-        return data as TaskComment;
+        const newComment: TaskComment = {
+          id: data.id,
+          task_id: data.task_id,
+          author: data.author,
+          text: data.text,
+          created_at: data.created_at,
+        };
+
+        setComments((prev) => [...prev, newComment]);
+        return newComment;
       }
     } catch (error) {
       console.error('Error adding comment:', error);

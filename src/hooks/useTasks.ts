@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Task, TaskStatus, TaskComment } from '@/entities/task';
 import { Announcement, DigitizationQueueItem, NotAutomatingItem, ExperimentItem } from '@/types/task';
 import { normalizeTaskFields } from '@/lib/textNormalize';
+import { mapToTask, mapToAnnouncement, mapToDigitizationQueueItem, mapToNotAutomatingItem, mapToExperimentItem } from '@/lib/typeGuards';
 import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
 // Re-export GSheets hooks for use in components
@@ -21,13 +22,11 @@ export function useTasks() {
 
     if (error) {
       console.error('Error fetching tasks:', error);
-    } else {
-      // Map data to ensure summary exists (fallback to description for backwards compatibility)
-      const mappedTasks = (data || []).map(task => ({
-        ...task,
-        summary: task.summary || task.description || '',
-      })) as Task[];
+    } else if (data) {
+      const mappedTasks = data.map(row => mapToTask(row as Record<string, unknown>));
       setTasks(mappedTasks);
+    } else {
+      setTasks([]);
     }
     setLoading(false);
   }, []);
@@ -75,10 +74,11 @@ export function useTasks() {
       throw error;
     }
 
-    const newTask = {
-      ...data,
-      summary: data.summary || data.description || '',
-    } as Task;
+    if (!data) {
+      throw new Error('No data returned from insert');
+    }
+
+    const newTask = mapToTask(data as Record<string, unknown>);
     
     setTasks((prev) => [newTask, ...prev]);
     return newTask;
@@ -127,10 +127,11 @@ export function useTasks() {
       throw error;
     }
 
-    const updatedTask = {
-      ...data,
-      summary: data.summary || data.description || '',
-    } as Task;
+    if (!data) {
+      throw new Error('No data returned from update');
+    }
+
+    const updatedTask = mapToTask(data as Record<string, unknown>);
 
     setTasks((prev) => prev.map((t) => (t.id === taskId ? updatedTask : t)));
     return updatedTask;
@@ -159,8 +160,12 @@ export function useAnnouncements() {
 
     if (error) {
       console.error('Error fetching announcements:', error);
+      setAnnouncements([]);
+    } else if (data) {
+      const mapped = data.map(row => mapToAnnouncement(row as Record<string, unknown>));
+      setAnnouncements(mapped);
     } else {
-      setAnnouncements(data as Announcement[]);
+      setAnnouncements([]);
     }
     setLoading(false);
   }, []);
@@ -186,8 +191,12 @@ export function useDigitizationQueue() {
 
       if (error) {
         console.error('Error fetching digitization queue:', error);
+        setItems([]);
+      } else if (data) {
+        const mapped = data.map(row => mapToDigitizationQueueItem(row as Record<string, unknown>));
+        setItems(mapped);
       } else {
-        setItems(data as DigitizationQueueItem[]);
+        setItems([]);
       }
       setLoading(false);
     };
@@ -211,8 +220,12 @@ export function useNotAutomating() {
 
       if (error) {
         console.error('Error fetching not automating:', error);
+        setItems([]);
+      } else if (data) {
+        const mapped = data.map(row => mapToNotAutomatingItem(row as Record<string, unknown>));
+        setItems(mapped);
       } else {
-        setItems(data as NotAutomatingItem[]);
+        setItems([]);
       }
       setLoading(false);
     };
@@ -236,8 +249,12 @@ export function useExperiments() {
 
       if (error) {
         console.error('Error fetching experiments:', error);
+        setItems([]);
+      } else if (data) {
+        const mapped = data.map(row => mapToExperimentItem(row as Record<string, unknown>));
+        setItems(mapped);
       } else {
-        setItems(data as ExperimentItem[]);
+        setItems([]);
       }
       setLoading(false);
     };

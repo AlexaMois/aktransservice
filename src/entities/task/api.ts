@@ -5,6 +5,7 @@
 import { Task, TaskStatus } from './model';
 import { supabase } from '@/integrations/supabase/client';
 import { gsheetsTasksApi, isGSheetsMode } from '@/lib/api/gsheets';
+import { mapToTask } from '@/lib/typeGuards';
 import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
 /**
@@ -21,11 +22,9 @@ export async function fetchTasks(): Promise<Task[]> {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
+  if (!data) return [];
 
-  return (data || []).map(task => ({
-    ...task,
-    summary: task.summary || task.description || '',
-  })) as Task[];
+  return data.map(row => mapToTask(row as Record<string, unknown>));
 }
 
 /**
@@ -72,11 +71,9 @@ export async function createTask(
     .single();
 
   if (error) throw error;
+  if (!data) throw new Error('No data returned from insert');
 
-  return {
-    ...data,
-    summary: data.summary || data.description || '',
-  } as Task;
+  return mapToTask(data as Record<string, unknown>);
 }
 
 /**
@@ -121,11 +118,9 @@ export async function updateTask(
     .single();
 
   if (error) throw error;
+  if (!data) throw new Error('No data returned from update');
 
-  return {
-    ...data,
-    summary: data.summary || data.description || '',
-  } as Task;
+  return mapToTask(data as Record<string, unknown>);
 }
 
 /**

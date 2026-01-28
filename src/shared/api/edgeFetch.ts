@@ -73,6 +73,21 @@ export async function edgeFetch(
 /**
  * Fetch helper that parses JSON response and throws on error
  */
+/**
+ * Type guard for error response objects
+ */
+function isErrorResponse(value: unknown): value is { error: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'error' in value &&
+    typeof (value as Record<string, unknown>).error === 'string'
+  );
+}
+
+/**
+ * Fetch helper that parses JSON response and throws on error
+ */
 export async function edgeFetchJson<T = unknown>(
   path: string,
   options: EdgeFetchOptions = {}
@@ -80,7 +95,7 @@ export async function edgeFetchJson<T = unknown>(
   const response = await edgeFetch(path, options);
 
   const text = await response.text();
-  let data: T;
+  let data: unknown;
 
   try {
     data = text ? JSON.parse(text) : null;
@@ -89,11 +104,11 @@ export async function edgeFetchJson<T = unknown>(
   }
 
   if (!response.ok) {
-    const errorData = data as { error?: string };
-    throw new Error(errorData?.error || `HTTP Error ${response.status}`);
+    const errorMessage = isErrorResponse(data) ? data.error : `HTTP Error ${response.status}`;
+    throw new Error(errorMessage);
   }
 
-  return data;
+  return data as T;
 }
 
 /**

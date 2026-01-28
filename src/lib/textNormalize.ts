@@ -41,13 +41,14 @@ export function normalizeTaskFields<T extends Record<string, unknown>>(task: T):
     'result_before',
     'result_action',
     'result_after',
-  ];
+  ] as const;
 
   const normalized = { ...task };
 
   for (const field of textFields) {
-    if (field in normalized && typeof normalized[field] === 'string') {
-      (normalized as Record<string, unknown>)[field] = normalizeText(normalized[field] as string);
+    const value = normalized[field];
+    if (field in normalized && typeof value === 'string') {
+      (normalized as Record<string, unknown>)[field] = normalizeText(value);
     }
   }
 
