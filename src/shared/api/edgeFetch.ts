@@ -1,8 +1,9 @@
 /**
  * Unified helper for Supabase Edge Functions fetch requests
+ * 
+ * NOTE: This project uses custom whitelist auth via Google Sheets,
+ * NOT Supabase Auth. The session is managed via localStorage and X-App-Session header.
  */
-
-import { supabase } from '@/integrations/supabase/client';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -11,22 +12,6 @@ export interface EdgeFetchOptions extends Omit<RequestInit, 'headers'> {
   headers?: Record<string, string>;
   /** Skip automatic Content-Type header (useful for FormData) */
   skipContentType?: boolean;
-}
-
-/**
- * Get the current access token from Supabase session
- * Falls back to anon key if no session exists
- */
-async function getAccessToken(): Promise<string> {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      return session.access_token;
-    }
-  } catch (error) {
-    console.warn('Failed to get session, using anon key:', error);
-  }
-  return SUPABASE_ANON_KEY;
 }
 
 /**
@@ -48,13 +33,10 @@ export async function edgeFetch(
     ? `/functions/v1${path}`
     : `/functions/v1/${path}`;
 
-  // Get access token (user session or anon key)
-  const accessToken = await getAccessToken();
-
-  // Build headers - always include apikey, Authorization uses session token or anon key
+  // Build headers - always use anon key for Authorization (session is in X-App-Session)
   const finalHeaders: Record<string, string> = {
     'apikey': SUPABASE_ANON_KEY,
-    'Authorization': `Bearer ${accessToken}`,
+    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
     ...headers,
   };
 
@@ -71,9 +53,6 @@ export async function edgeFetch(
   return response;
 }
 
-/**
- * Fetch helper that parses JSON response and throws on error
- */
 /**
  * Type guard for error response objects
  */
