@@ -252,7 +252,10 @@ export function useTaskComments(taskId: string) {
   const [loading, setLoading] = useState(true);
 
   const fetchComments = useCallback(async () => {
-    if (!taskId) return;
+    if (!taskId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const { data, error } = await supabase
       .from('task_comments')
@@ -262,8 +265,18 @@ export function useTaskComments(taskId: string) {
 
     if (error) {
       console.error('Error fetching comments:', error);
+      setComments([]);
+    } else if (data) {
+      const mappedComments: TaskComment[] = data.map(item => ({
+        id: item.id,
+        task_id: item.task_id,
+        author: item.author,
+        text: item.text,
+        created_at: item.created_at,
+      }));
+      setComments(mappedComments);
     } else {
-      setComments(data as TaskComment[]);
+      setComments([]);
     }
     setLoading(false);
   }, [taskId]);
@@ -272,7 +285,7 @@ export function useTaskComments(taskId: string) {
     fetchComments();
   }, [fetchComments]);
 
-  const addComment = async (author: string, text: string) => {
+  const addComment = async (author: string, text: string): Promise<TaskComment> => {
     const normalizedText = text?.trim() || '';
     const normalizedAuthor = author?.trim() || 'Аноним';
     
@@ -291,8 +304,20 @@ export function useTaskComments(taskId: string) {
       throw error;
     }
 
-    setComments((prev) => [...prev, data as TaskComment]);
-    return data as TaskComment;
+    if (!data) {
+      throw new Error('No data returned from insert');
+    }
+
+    const newComment: TaskComment = {
+      id: data.id,
+      task_id: data.task_id,
+      author: data.author,
+      text: data.text,
+      created_at: data.created_at,
+    };
+
+    setComments((prev) => [...prev, newComment]);
+    return newComment;
   };
 
   return { comments, loading, addComment, refetch: fetchComments };
