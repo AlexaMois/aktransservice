@@ -37,6 +37,23 @@ export const DraggableTaskCard = memo(function DraggableTaskCard({ task, onClick
     transform: CSS.Translate.toString(transform),
   };
 
+  // Hide original when dragging - DragOverlay shows the dragged copy
+  if (isDragging) {
+    return (
+      <Card 
+        ref={setNodeRef}
+        style={style}
+        {...listeners}
+        {...attributes}
+        className={`opacity-30 border-dashed border-2 border-muted-foreground/30 bg-muted/20 p-2.5 touch-none overflow-hidden ${importanceStyles.borderClass}`}
+      >
+        <div className="invisible">
+          <h3 className="font-medium text-xs">{task.title}</h3>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card 
       ref={setNodeRef}
@@ -44,13 +61,11 @@ export const DraggableTaskCard = memo(function DraggableTaskCard({ task, onClick
       {...listeners}
       {...attributes}
       className={`cursor-grab transition-all duration-200 border-border/50 bg-card p-2.5 touch-none overflow-hidden ${importanceStyles.borderClass}
-        ${isDragging ? 'opacity-50 shadow-lg scale-105 z-50' : 'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]'}
+        hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]
         ${isSyncing ? 'opacity-70' : ''}
       `}
       onClick={(e) => {
-        if (!isDragging) {
-          onClick();
-        }
+        onClick();
       }}
     >
       <div className="flex items-center gap-1 mb-1.5 flex-wrap">
