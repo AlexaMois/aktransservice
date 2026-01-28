@@ -11,13 +11,16 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { User, LogOut, Shield, ExternalLink, Table } from 'lucide-react';
 import { getSession, clearSession, isAdmin } from '@/lib/auth/session';
+import { edgeFetchJson, base64UrlEncodeUtf8 } from '@/shared/api/edgeFetch';
 
 interface UserMenuProps {
   onLogout: () => void;
 }
 
-// Google Sheets URL from environment
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+interface SpreadsheetUrlResponse {
+  success: boolean;
+  data?: { url: string };
+}
 
 export function UserMenu({ onLogout }: UserMenuProps) {
   const session = getSession();
@@ -27,27 +30,15 @@ export function UserMenu({ onLogout }: UserMenuProps) {
   useEffect(() => {
     if (!isAdmin() || !session) return;
     
-    // Encode session for header (base64url to avoid non-ASCII issues)
-    const encodeSession = (s: typeof session) => {
-      const json = JSON.stringify(s);
-      const bytes = new TextEncoder().encode(json);
-      let binary = '';
-      for (const b of bytes) binary += String.fromCharCode(b);
-      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-    };
-    
     const fetchSpreadsheetInfo = async () => {
       try {
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/gsheets-api`, {
+        const result = await edgeFetchJson<SpreadsheetUrlResponse>('/gsheets-api', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            'X-App-Session': encodeSession(session),
+            'X-App-Session': base64UrlEncodeUtf8(JSON.stringify(session)),
           },
           body: JSON.stringify({ action: 'getSpreadsheetUrl', entity: 'admin' }),
         });
-        const result = await response.json();
         if (result.success && result.data?.url) {
           setSpreadsheetUrl(result.data.url);
         }
@@ -57,7 +48,7 @@ export function UserMenu({ onLogout }: UserMenuProps) {
     };
     
     fetchSpreadsheetInfo();
-  }, []);
+  }, [session]);
   
   if (!session) return null;
 
