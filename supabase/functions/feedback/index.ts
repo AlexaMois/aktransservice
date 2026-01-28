@@ -32,7 +32,6 @@ interface UserSession {
   user_id: string;
   name: string;
   role: 'admin' | 'user';
-  access_code: string;
 }
 
 interface FeedbackPayload {
@@ -50,7 +49,7 @@ const FEEDBACK_COLUMNS = [
   'description', 'area', 'urgency', 'screenshot_url', 'created_at'
 ];
 
-const USER_COLUMNS = ['user_id', 'name', 'role', 'access_code', 'active', 'created_at'];
+const USER_COLUMNS = ['user_id', 'name', 'role', 'telegram_id', 'active'];
 
 async function getAccessToken(serviceAccountKey: ServiceAccountKey): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
@@ -212,9 +211,9 @@ async function validateSession(
     const json = raw.startsWith('{') ? raw : decodeBase64UrlUtf8(raw);
     const session: UserSession = JSON.parse(json);
     
-    if (!session.user_id || !session.access_code) return null;
+    if (!session.user_id) return null;
     
-    // Verify user exists
+    // Verify user exists in whitelist
     await ensureSheetExists(accessToken, 'Users', USER_COLUMNS, spreadsheetId);
     const rows = await getSheetData(accessToken, 'Users', spreadsheetId);
     
@@ -222,14 +221,12 @@ async function validateSession(
     
     const headers = rows[0];
     const userIdIndex = headers.indexOf('user_id');
-    const accessCodeIndex = headers.indexOf('access_code');
     const activeIndex = headers.indexOf('active');
     
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       if (
         row[userIdIndex] === session.user_id && 
-        row[accessCodeIndex] === session.access_code &&
         (row[activeIndex] === 'true' || row[activeIndex] === 'TRUE')
       ) {
         return session;
