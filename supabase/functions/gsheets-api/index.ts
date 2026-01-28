@@ -581,7 +581,11 @@ Deno.serve(async (req) => {
           const secretKey = req.headers.get('X-App-Secret-Key');
           const expectedKey = Deno.env.get('APP_SECRET_KEY');
           
+          console.log('Init whitelist - received key length:', secretKey?.length, 'expected key length:', expectedKey?.length);
+          console.log('Keys match:', secretKey === expectedKey);
+          
           if (!expectedKey || secretKey !== expectedKey) {
+            console.log('Key mismatch - received:', secretKey?.substring(0, 10) + '...', 'expected:', expectedKey?.substring(0, 10) + '...');
             return new Response(
               JSON.stringify({ success: false, error: 'Invalid secret key' }),
               { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
