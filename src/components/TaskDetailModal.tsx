@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Task, TaskStatus, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS, IMPORTANCE_LABELS, DEPARTMENT_LABELS } from '@/types/task';
+import { Task, TaskStatus, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS, IMPORTANCE_LABELS, DEPARTMENT_LABELS } from '@/entities/task';
 import { useTaskComments } from '@/hooks/useTasks';
 import { supabase } from '@/integrations/supabase/client';
 import { isAdmin } from '@/lib/auth/session';

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TaskType, ImportanceRating, Department, TASK_TYPE_LABELS, IMPORTANCE_LABELS, DEPARTMENT_LABELS } from '@/types/task';
+import { TaskType, ImportanceRating, Department, TASK_TYPE_LABELS, IMPORTANCE_LABELS, DEPARTMENT_LABELS } from '@/entities/task';
 import { getUserName, isAdmin } from '@/lib/auth/session';
 import {
   Dialog,

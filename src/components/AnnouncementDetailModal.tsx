@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Task } from '@/types/task';
+import { Task } from '@/entities/task';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

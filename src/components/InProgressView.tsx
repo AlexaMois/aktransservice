@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Task, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from '@/types/task';
+import { Task, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from '@/entities/task';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, User, AlertTriangle, Lightbulb, Zap, ListTodo, Megaphone } from 'lucide-react';

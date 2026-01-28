@@ -1,4 +1,5 @@
-import { Task, TaskComment, Announcement } from '@/types/task';
+import { Task, TaskComment } from '@/entities/task';
+import { Announcement } from '@/types/task';
 import { clearSession, getSession } from '@/lib/auth/session';
 import { edgeFetch, base64UrlEncodeUtf8 } from '@/shared/api/edgeFetch';
 

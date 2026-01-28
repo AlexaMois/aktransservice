@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
-import { Task, TaskStatus } from '@/types/task';
+import { Task, TaskStatus } from '@/entities/task';
 
 interface UseDragOptimisticOptions {
   tasks: Task[];

@@ -1,5 +1,5 @@
 import { useDroppable } from '@dnd-kit/core';
-import { TaskStatus, STATUS_LABELS } from '@/types/task';
+import { TaskStatus, STATUS_LABELS } from '@/entities/task';
 import { cn } from '@/lib/utils';
 
 const STATUSES: TaskStatus[] = ['ideas', 'planned', 'in-progress', 'review', 'completed'];

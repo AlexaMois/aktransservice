@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Task, TaskStatus, Announcement, TaskComment } from '@/types/task';
+import { Task, TaskStatus } from '@/entities/task';
+import { Announcement, TaskComment } from '@/types/task';
 import { gsheetsAnnouncementsApi, gsheetsCommentsApi, isGSheetsMode } from '@/lib/api/gsheets';
 import { supabase } from '@/integrations/supabase/client';
 import { useSyncStatus } from './useSyncStatus';
