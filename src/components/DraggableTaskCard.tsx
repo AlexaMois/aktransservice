@@ -37,15 +37,38 @@ export const DraggableTaskCard = memo(function DraggableTaskCard({ task, onClick
     transform: CSS.Translate.toString(transform),
   };
 
-  // Hide original when dragging - DragOverlay shows the dragged copy
-  // Only keep ref for DOM position, remove listeners/attributes to prevent conflicts
+  // Keep original visible but semi-transparent as "ghost" placeholder
+  // This preserves the element's rect for collision detection
   if (isDragging) {
     return (
-      <div 
+      <Card 
         ref={setNodeRef}
-        className="opacity-0 h-0 overflow-hidden pointer-events-none"
+        style={style}
+        className={`opacity-30 pointer-events-none border-dashed border-2 border-border bg-muted/30 p-2.5 touch-none overflow-hidden ${importanceStyles.borderClass}`}
         aria-hidden="true"
-      />
+      >
+        <div className="flex items-center gap-1 mb-1.5 flex-wrap">
+          <Badge variant="outline" className={`text-[10px] gap-0.5 px-1.5 py-0 h-5 ${TASK_TYPE_COLORS[task.task_type]}`}>
+            <TaskTypeIcon type={task.task_type} />
+            {TASK_TYPE_LABELS[task.task_type]}
+          </Badge>
+          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 font-bold ${importanceStyles.badgeClass}`}>
+            {importanceStyles.label}
+          </Badge>
+        </div>
+        <h3 
+          className="font-medium text-xs leading-tight text-muted-foreground mb-1 break-words"
+          style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', hyphens: 'auto' }}
+        >
+          {task.title}
+        </h3>
+        <p 
+          className="text-[10px] text-muted-foreground/70 break-words"
+          style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', hyphens: 'auto' }}
+        >
+          {task.summary}
+        </p>
+      </Card>
     );
   }
 
