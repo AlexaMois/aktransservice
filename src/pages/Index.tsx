@@ -5,7 +5,7 @@ import { useDragOptimistic } from '@/hooks/useDragOptimistic';
 import { useAnnouncementReadStatus, hasUserId } from '@/hooks/useAnnouncementReadStatus';
 import { isAuthenticated, clearSession, isAdmin } from '@/lib/auth/session';
 import { useSwipe } from '@/hooks/useSwipe';
-import { DndContext, DragEndEvent, DragOverlay, rectIntersection, useSensor, useSensors, PointerSensor, TouchSensor, MeasuringStrategy } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, rectIntersection, useSensor, useSensors, PointerSensor, TouchSensor, MeasuringStrategy } from '@dnd-kit/core';
 import { Header } from '@/components/Header';
 import { SearchAndFilters } from '@/components/SearchAndFilters';
 import { KanbanColumn } from '@/components/KanbanColumn';
@@ -22,7 +22,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Map, Megaphone, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
-import { TaskCard } from '@/components/TaskCard';
 import { MobileDraggableTaskList } from '@/components/MobileDraggableTaskList';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -309,7 +308,7 @@ const Index = () => {
     setActiveDragId(event.active.id as string);
   };
 
-  const activeDragTask = activeDragId ? tasksWithOptimistic.find(t => t.id === activeDragId) : null;
+  // activeDragId is used for mobile drop-zones UI while dragging
 
   // Show login screen if not authenticated
   if (!isLoggedIn) {
@@ -485,11 +484,6 @@ const Index = () => {
                     </div>
                   </div>
                   
-                  <DragOverlay>
-                    {activeDragTask ? (
-                      <TaskCard task={activeDragTask} onClick={() => {}} />
-                    ) : null}
-                  </DragOverlay>
                 </DndContext>
               </>
             )}
