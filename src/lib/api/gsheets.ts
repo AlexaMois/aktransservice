@@ -16,7 +16,18 @@ export const setGSheetsId = (id: string) => {
   localStorage.setItem('GOOGLE_SHEETS_ID', id);
 };
 
-async function callGSheetsAPI(action: string, entity: string, data?: any, id?: string) {
+interface GSheetsAPIResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+async function callGSheetsAPI<T = unknown>(
+  action: string, 
+  entity: string, 
+  data?: Record<string, unknown> | null, 
+  id?: string
+): Promise<T> {
   const session = getSession();
   
   const headers: Record<string, string> = {};
@@ -36,9 +47,9 @@ async function callGSheetsAPI(action: string, entity: string, data?: any, id?: s
 
   // Be defensive: edge/runtime can sometimes return non-JSON bodies on failures.
   const raw = await response.text();
-  let result: any;
+  let result: GSheetsAPIResponse<T>;
   try {
-    result = raw ? JSON.parse(raw) : null;
+    result = raw ? JSON.parse(raw) : { success: false };
   } catch {
     // If server didn't return JSON, still surface a useful error
     if (response.status === 401) {
@@ -49,7 +60,7 @@ async function callGSheetsAPI(action: string, entity: string, data?: any, id?: s
     throw new Error(`Ошибка сервера (${response.status}). Попробуйте обновить страницу.`);
   }
   
-  if (!result?.success) {
+  if (!result.success) {
     // Handle specific error codes
     if (response.status === 401) {
       // Session is no longer valid (e.g., after reset). Clear it and return user to login.
@@ -63,67 +74,67 @@ async function callGSheetsAPI(action: string, entity: string, data?: any, id?: s
     throw new Error(result.error || 'API call failed');
   }
   
-  return result.data;
+  return result.data as T;
 }
 
 // Tasks API
 export const gsheetsTasksApi = {
   async list(): Promise<Task[]> {
-    const data = await callGSheetsAPI('list', 'tasks');
-    return data.sort((a: Task, b: Task) => 
+    const data = await callGSheetsAPI<Task[]>('list', 'tasks');
+    return data.sort((a, b) => 
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
   },
   
   async create(task: Omit<Task, 'id' | 'created_at' | 'updated_at'>): Promise<Task> {
     // Note: author will be set by server from session
-    return callGSheetsAPI('create', 'tasks', task);
+    return callGSheetsAPI<Task>('create', 'tasks', task as unknown as Record<string, unknown>);
   },
   
   async update(id: string, updates: Partial<Task>): Promise<Task> {
     // Note: author cannot be changed by client
-    return callGSheetsAPI('update', 'tasks', updates, id);
+    return callGSheetsAPI<Task>('update', 'tasks', updates as unknown as Record<string, unknown>, id);
   },
   
   async delete(id: string): Promise<void> {
-    return callGSheetsAPI('delete', 'tasks', null, id);
+    await callGSheetsAPI<void>('delete', 'tasks', null, id);
   },
 };
 
 // Announcements API
 export const gsheetsAnnouncementsApi = {
   async list(): Promise<Announcement[]> {
-    const data = await callGSheetsAPI('list', 'announcements');
-    return data.sort((a: Announcement, b: Announcement) => 
+    const data = await callGSheetsAPI<Announcement[]>('list', 'announcements');
+    return data.sort((a, b) => 
       new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
     );
   },
   
   async create(announcement: Omit<Announcement, 'id' | 'created_at' | 'updated_at'>): Promise<Announcement> {
-    return callGSheetsAPI('create', 'announcements', announcement);
+    return callGSheetsAPI<Announcement>('create', 'announcements', announcement as unknown as Record<string, unknown>);
   },
   
   async update(id: string, updates: Partial<Announcement>): Promise<Announcement> {
-    return callGSheetsAPI('update', 'announcements', updates, id);
+    return callGSheetsAPI<Announcement>('update', 'announcements', updates as unknown as Record<string, unknown>, id);
   },
   
   async delete(id: string): Promise<void> {
-    return callGSheetsAPI('delete', 'announcements', null, id);
+    await callGSheetsAPI<void>('delete', 'announcements', null, id);
   },
 };
 
 // Comments API
 export const gsheetsCommentsApi = {
   async list(taskId?: string): Promise<TaskComment[]> {
-    const data = await callGSheetsAPI('list', 'comments', { task_id: taskId });
-    return data.sort((a: TaskComment, b: TaskComment) => 
+    const data = await callGSheetsAPI<TaskComment[]>('list', 'comments', { task_id: taskId });
+    return data.sort((a, b) => 
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     );
   },
   
   async create(comment: { task_id: string; text: string }): Promise<TaskComment> {
     // Note: author will be set by server from session
-    return callGSheetsAPI('create', 'comments', comment);
+    return callGSheetsAPI<TaskComment>('create', 'comments', comment);
   },
 };
 
@@ -138,13 +149,12 @@ export interface ReadStatus {
 export const gsheetsReadStatusApi = {
   async list(): Promise<ReadStatus[]> {
     // user_id is now taken from session on server side
-    const data = await callGSheetsAPI('list', 'readStatus', {});
-    return data;
+    return callGSheetsAPI<ReadStatus[]>('list', 'readStatus', {});
   },
   
   async markAsRead(announcementIds: string[]): Promise<ReadStatus[]> {
     // user_id is now taken from session on server side
-    return callGSheetsAPI('create', 'readStatus', { announcement_ids: announcementIds });
+    return callGSheetsAPI<ReadStatus[]>('create', 'readStatus', { announcement_ids: announcementIds });
   },
 };
 

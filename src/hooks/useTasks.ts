@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Task, TaskStatus, TaskComment } from '@/entities/task';
 import { Announcement, DigitizationQueueItem, NotAutomatingItem, ExperimentItem } from '@/types/task';
 import { normalizeTaskFields } from '@/lib/textNormalize';
+import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
 // Re-export GSheets hooks for use in components
 export { useGSheetsTasks, useGSheetsAnnouncements, useGSheetsComments } from './useGSheetsTasks';
@@ -39,12 +40,33 @@ export function useTasks() {
     // Normalize text fields before saving
     const normalizedTask = normalizeTaskFields(task);
     
+    const insertData: TablesInsert<'tasks'> = {
+      title: normalizedTask.title,
+      summary: normalizedTask.summary,
+      description: normalizedTask.description,
+      task_type: normalizedTask.task_type,
+      priority: normalizedTask.priority,
+      author: normalizedTask.author,
+      importance: normalizedTask.importance,
+      owner: normalizedTask.owner,
+      url: normalizedTask.url,
+      input_data_description: normalizedTask.input_data_description,
+      file_name: normalizedTask.file_name,
+      file_url: normalizedTask.file_url,
+      problem_description: normalizedTask.problem_description,
+      effect_type: normalizedTask.effect_type,
+      linked_idea_id: normalizedTask.linked_idea_id,
+      linked_problem_id: normalizedTask.linked_problem_id,
+      result_before: normalizedTask.result_before,
+      result_action: normalizedTask.result_action,
+      result_after: normalizedTask.result_after,
+      execution_log: normalizedTask.execution_log,
+      status: 'ideas',
+    };
+
     const { data, error } = await supabase
       .from('tasks')
-      .insert({
-        ...normalizedTask,
-        status: 'ideas',
-      } as any)
+      .insert(insertData)
       .select()
       .single();
 
@@ -70,9 +92,32 @@ export function useTasks() {
     // Normalize text fields before saving
     const normalizedUpdates = normalizeTaskFields(updates);
     
+    // Build update object with only defined fields
+    const updateData: TablesUpdate<'tasks'> = {};
+    if (normalizedUpdates.title !== undefined) updateData.title = normalizedUpdates.title;
+    if (normalizedUpdates.summary !== undefined) updateData.summary = normalizedUpdates.summary;
+    if (normalizedUpdates.description !== undefined) updateData.description = normalizedUpdates.description;
+    if (normalizedUpdates.task_type !== undefined) updateData.task_type = normalizedUpdates.task_type;
+    if (normalizedUpdates.status !== undefined) updateData.status = normalizedUpdates.status;
+    if (normalizedUpdates.priority !== undefined) updateData.priority = normalizedUpdates.priority;
+    if (normalizedUpdates.importance !== undefined) updateData.importance = normalizedUpdates.importance;
+    if (normalizedUpdates.owner !== undefined) updateData.owner = normalizedUpdates.owner;
+    if (normalizedUpdates.url !== undefined) updateData.url = normalizedUpdates.url;
+    if (normalizedUpdates.input_data_description !== undefined) updateData.input_data_description = normalizedUpdates.input_data_description;
+    if (normalizedUpdates.file_name !== undefined) updateData.file_name = normalizedUpdates.file_name;
+    if (normalizedUpdates.file_url !== undefined) updateData.file_url = normalizedUpdates.file_url;
+    if (normalizedUpdates.problem_description !== undefined) updateData.problem_description = normalizedUpdates.problem_description;
+    if (normalizedUpdates.effect_type !== undefined) updateData.effect_type = normalizedUpdates.effect_type;
+    if (normalizedUpdates.linked_idea_id !== undefined) updateData.linked_idea_id = normalizedUpdates.linked_idea_id;
+    if (normalizedUpdates.linked_problem_id !== undefined) updateData.linked_problem_id = normalizedUpdates.linked_problem_id;
+    if (normalizedUpdates.result_before !== undefined) updateData.result_before = normalizedUpdates.result_before;
+    if (normalizedUpdates.result_action !== undefined) updateData.result_action = normalizedUpdates.result_action;
+    if (normalizedUpdates.result_after !== undefined) updateData.result_after = normalizedUpdates.result_after;
+    if (normalizedUpdates.execution_log !== undefined) updateData.execution_log = normalizedUpdates.execution_log;
+
     const { data, error } = await supabase
       .from('tasks')
-      .update(normalizedUpdates as any)
+      .update(updateData)
       .eq('id', taskId)
       .select()
       .single();
