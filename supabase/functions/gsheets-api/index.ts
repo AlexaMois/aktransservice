@@ -560,6 +560,77 @@ Deno.serve(async (req) => {
       (req as any).user = user;
     }
     
+    // INPUT VALIDATION: Enforce text field length limits
+    const validateTextFields = (
+      fields: Record<string, number>, 
+      data: Record<string, unknown>
+    ): string | null => {
+      for (const [field, maxLength] of Object.entries(fields)) {
+        const value = data?.[field];
+        if (value && typeof value === 'string' && value.length > maxLength) {
+          return `Поле "${field}" слишком длинное (макс. ${maxLength} символов)`;
+        }
+      }
+      return null;
+    };
+    
+    // Validate input lengths for tasks
+    if (entity === 'tasks' && ['create', 'update'].includes(action)) {
+      const taskLimits = {
+        title: 200,
+        summary: 500,
+        description: 5000,
+        problem_description: 5000,
+        input_data_description: 2000,
+        execution_log: 10000,
+        url: 500,
+        file_url: 500,
+        file_name: 200,
+        owner: 100,
+        result_before: 2000,
+        result_action: 2000,
+        result_after: 2000,
+      };
+      const error = validateTextFields(taskLimits, data || {});
+      if (error) {
+        return new Response(
+          JSON.stringify({ success: false, error }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    
+    // Validate input lengths for announcements
+    if (entity === 'announcements' && ['create', 'update'].includes(action)) {
+      const announcementLimits = {
+        title: 200,
+        description: 10000,
+        document_url: 500,
+        target_audience: 100,
+      };
+      const error = validateTextFields(announcementLimits, data || {});
+      if (error) {
+        return new Response(
+          JSON.stringify({ success: false, error }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    
+    // Validate input lengths for comments
+    if (entity === 'comments' && action === 'create') {
+      const commentLimits = {
+        text: 2000,
+      };
+      const error = validateTextFields(commentLimits, data || {});
+      if (error) {
+        return new Response(
+          JSON.stringify({ success: false, error }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    
     let result: any;
     
     switch (entity) {
