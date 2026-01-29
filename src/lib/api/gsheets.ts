@@ -1,12 +1,7 @@
 import { Task, TaskComment, TaskScope } from '@/entities/task';
 import { Announcement } from '@/types/task';
-import { clearSession, getSession } from '@/lib/auth/session';
+import { getSession } from '@/lib/auth/session';
 import { edgeFetch, base64UrlEncodeUtf8 } from '@/shared/api/edgeFetch';
-
-function notifyAuthRequired() {
-  if (typeof window === 'undefined') return;
-  window.dispatchEvent(new CustomEvent('app:auth-required'));
-}
 
 function notifyRateLimited(retryAfterMs: number) {
   if (typeof window === 'undefined') return;
@@ -49,10 +44,9 @@ async function callGSheetsAPI<T = unknown>(
     result = raw ? JSON.parse(raw) : { success: false };
   } catch {
     // If server didn't return JSON, still surface a useful error
+    // NOTE: Do NOT clear session on 401 - user stays logged in until manual logout
     if (response.status === 401) {
-      clearSession();
-      notifyAuthRequired();
-      throw new Error('Требуется авторизация');
+      throw new Error('Ошибка авторизации. Попробуйте обновить страницу.');
     }
     if (response.status === 429) {
       const retryAfterSec = Number(response.headers.get('retry-after') || '60');
@@ -64,11 +58,9 @@ async function callGSheetsAPI<T = unknown>(
   
   if (!result.success) {
     // Handle specific error codes
+    // NOTE: Do NOT clear session on 401 - user stays logged in until manual logout
     if (response.status === 401) {
-      // Session is no longer valid (e.g., after reset). Clear it and return user to login.
-      clearSession();
-      notifyAuthRequired();
-      throw new Error('Требуется авторизация');
+      throw new Error('Ошибка авторизации. Попробуйте обновить страницу.');
     }
     if (response.status === 429) {
       const retryAfterSec = Number(response.headers.get('retry-after') || '60');
