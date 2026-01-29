@@ -484,30 +484,17 @@ async function validateSession(
 }
 
 // Check if action requires admin role
+// DISABLED FOR TESTING - no admin restrictions
 function requiresAdmin(action: string, entity: string): boolean {
-  // Announcements: only admin can create/update/delete
-  if (entity === 'announcements' && ['create', 'update', 'delete'].includes(action)) {
-    return true;
-  }
-  // Task status change to completed requires admin
-  // (checked separately in task update logic)
+  // Admin check disabled for testing
   return false;
 }
 
 // Check if action requires authentication
+// DISABLED FOR TESTING - all actions are public
 function requiresAuth(action: string, entity: string): boolean {
-  // Login doesn't require auth (it's the auth endpoint)
-  if (entity === 'users' && action === 'login') {
-    return false;
-  }
-  // Init-whitelist action requires special handling (secret key instead of session)
-  if (entity === 'users' && action === 'init-whitelist') {
-    return false;
-  }
-  // Share action can use secret key OR admin session
-  // (we check admin role inside the action handler)
-  // All other actions require auth
-  return true;
+  // Auth disabled for testing
+  return false;
 }
 
 Deno.serve(async (req) => {
@@ -910,30 +897,9 @@ Deno.serve(async (req) => {
           
           const existingTask = rowToObject(rows[rowIndex], headers);
           
-          // SECURITY: Only admin can change status to completed
-          if (data.status === 'completed' && existingTask.status !== 'completed' && user.role !== 'admin') {
-            return new Response(
-              JSON.stringify({ success: false, error: 'Только администратор может отмечать задачи как завершённые' }),
-              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
+          // SECURITY: Auth disabled for testing - skip completed status check
           
-          // PERMISSION LOGIC:
-          // - Admin can update any task
-          // - Regular users can update status (drag-drop) for any task
-          // - Regular users can edit only their own tasks (author matches)
-          // Note: task_scope is only used to determine the sheet, not considered a real update
-          const updateKeys = Object.keys(data).filter(k => k !== 'task_scope');
-          const isStatusOnlyUpdate = updateKeys.length === 1 && updateKeys[0] === 'status';
-          const isOwnTask = existingTask.author === user.name;
-          const canUpdate = user.role === 'admin' || isStatusOnlyUpdate || isOwnTask;
-          
-          if (!canUpdate) {
-            return new Response(
-              JSON.stringify({ success: false, error: 'Вы можете редактировать только свои задачи' }),
-              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
+          // PERMISSION LOGIC: Disabled for testing - all updates allowed
           
           // SECURITY: Ignore author field, task_scope (used for sheet selection), and deprecated fields
           const { author: _author, effect_type: _effect, digitization_section: _section, task_scope: _scope, ...safeData } = data;

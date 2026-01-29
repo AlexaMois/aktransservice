@@ -42,12 +42,13 @@ import { toast } from "sonner";
 const STATUSES: TaskStatus[] = ["ideas", "planned", "in-progress", "review", "completed"];
 
 const Index = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => isAuthenticated());
+  // Auth disabled for testing - always logged in
+  const [isLoggedIn] = useState(true);
   const [taskScope, setTaskScope] = useState<TaskScope>("digitization");
   
   // Fetch tasks from appropriate sheet based on taskScope
   const { tasks, loading, addTask, updateTask, deleteTask, refetch, syncStatus, lastSyncTime, manualSync } =
-    useGSheetsTasks(taskScope, undefined, isLoggedIn);
+    useGSheetsTasks(taskScope, undefined, true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [defaultTaskType, setDefaultTaskType] = useState<TaskType>("idea");
@@ -142,17 +143,10 @@ const Index = () => {
   // Track read status for announcements
   const { unreadCount, markAllAsRead, isUnread, hasUnread, needsUserName } = useAnnouncementReadStatus(announcements);
 
-  // Handle logout
+  // Handle logout - disabled for testing
   const handleLogout = useCallback(() => {
-    clearSession();
-    setIsLoggedIn(false);
+    // No-op: auth disabled for testing
   }, []);
-
-  // Handle login success
-  const handleLoginSuccess = useCallback(() => {
-    setIsLoggedIn(true);
-    refetch();
-  }, [refetch]);
 
   // Mark announcements as read when user opens the tab
   useEffect(() => {
@@ -355,10 +349,7 @@ const Index = () => {
 
   const activeDragTask = activeDragId ? tasksWithOptimistic.find((t) => t.id === activeDragId) : null;
 
-  // Show login screen if not authenticated
-  if (!isLoggedIn) {
-    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
-  }
+  // Auth disabled for testing - always show main app
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
