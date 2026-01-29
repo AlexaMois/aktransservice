@@ -156,51 +156,62 @@ const Index = () => {
   // Apply filters (only to regular tasks, not announcements)
   // NOTE: Task scope filtering is now done at API level (different sheets), not here
   const filteredTasks = useMemo(() => {
-    return regularTasks.filter((task) => {
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesSearch =
-          task.title.toLowerCase().includes(query) ||
-          task.summary.toLowerCase().includes(query) ||
-          (task.description?.toLowerCase().includes(query) ?? false) ||
-          task.author.toLowerCase().includes(query) ||
-          (task.owner?.toLowerCase().includes(query) ?? false);
-        if (!matchesSearch) return false;
-      }
+    try {
+      return regularTasks.filter((task) => {
+        // Search filter - with null safety
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          const title = task.title?.toLowerCase() ?? '';
+          const summary = task.summary?.toLowerCase() ?? '';
+          const description = task.description?.toLowerCase() ?? '';
+          const author = task.author?.toLowerCase() ?? '';
+          const owner = task.owner?.toLowerCase() ?? '';
+          
+          const matchesSearch =
+            title.includes(query) ||
+            summary.includes(query) ||
+            description.includes(query) ||
+            author.includes(query) ||
+            owner.includes(query);
+          if (!matchesSearch) return false;
+        }
 
-      // Status filter
-      if (statusFilter !== "all" && task.status !== statusFilter) {
-        return false;
-      }
+        // Status filter
+        if (statusFilter !== "all" && task.status !== statusFilter) {
+          return false;
+        }
 
-      // Priority filter
-      if (priorityFilter !== "all" && task.priority !== priorityFilter) {
-        return false;
-      }
+        // Priority filter
+        if (priorityFilter !== "all" && task.priority !== priorityFilter) {
+          return false;
+        }
 
-      // Task type filter
-      if (taskTypeFilter !== "all" && task.task_type !== taskTypeFilter) {
-        return false;
-      }
+        // Task type filter
+        if (taskTypeFilter !== "all" && task.task_type !== taskTypeFilter) {
+          return false;
+        }
 
-      // Importance filter
-      if (importanceFilter !== "all" && task.importance !== importanceFilter) {
-        return false;
-      }
+        // Importance filter
+        if (importanceFilter !== "all" && task.importance !== importanceFilter) {
+          return false;
+        }
 
-      // Owner filter
-      if (ownerFilter && task.owner !== ownerFilter) {
-        return false;
-      }
+        // Owner filter
+        if (ownerFilter && task.owner !== ownerFilter) {
+          return false;
+        }
 
-      // Department filter
-      if (departmentFilter !== "all" && task.department !== departmentFilter) {
-        return false;
-      }
+        // Department filter
+        if (departmentFilter !== "all" && task.department !== departmentFilter) {
+          return false;
+        }
 
-      return true;
-    });
+        return true;
+      });
+    } catch (error) {
+      console.error('Error filtering tasks:', error);
+      return regularTasks; // Return unfiltered on error
+    }
   }, [
     regularTasks,
     searchQuery,

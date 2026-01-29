@@ -1,14 +1,14 @@
 import { Laptop } from 'lucide-react';
 import { UserMenu } from './UserMenu';
 import { FeedbackModal } from './FeedbackModal';
-import { isAuthenticated } from '@/lib/auth/session';
 
 interface HeaderProps {
   onLogout?: () => void;
 }
 
 export function Header({ onLogout }: HeaderProps) {
-  const showFeedback = isAuthenticated();
+  // Always show feedback in public mode
+  const showFeedback = true;
   
   return (
     <header className="bg-card border-b border-border sticky top-0 z-40">
