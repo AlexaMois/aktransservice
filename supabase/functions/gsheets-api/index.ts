@@ -524,29 +524,14 @@ async function validateSession(
 
 // Check if action requires admin role
 function requiresAdmin(action: string, entity: string): boolean {
-  // Announcements: only admin can create/update/delete
-  if (entity === 'announcements' && ['create', 'update', 'delete'].includes(action)) {
-    return true;
-  }
-  // Task status change to completed requires admin
-  // (checked separately in task update logic)
+  // TEST MODE: auth disabled
   return false;
 }
 
 // Check if action requires authentication
 function requiresAuth(action: string, entity: string): boolean {
-  // Login doesn't require auth (it's the auth endpoint)
-  if (entity === 'users' && action === 'login') {
-    return false;
-  }
-  // Init-whitelist action requires special handling (secret key instead of session)
-  if (entity === 'users' && action === 'init-whitelist') {
-    return false;
-  }
-  // Share action can use secret key OR admin session
-  // (we check admin role inside the action handler)
-  // All other actions require auth
-  return true;
+  // TEST MODE: auth disabled
+  return false;
 }
 
 Deno.serve(async (req) => {
@@ -572,32 +557,17 @@ Deno.serve(async (req) => {
     const accessToken = await getAccessToken(serviceAccountKey);
     
     const { action, entity, data, id } = await req.json();
-    
-    // Get session from header
-    const sessionHeader = req.headers.get('X-App-Session');
-    
-    // Check if authentication is required
-    if (requiresAuth(action, entity)) {
-      const user = await validateSession(sessionHeader, accessToken, spreadsheetId);
-      
-      if (!user) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Unauthorized' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      // Check if admin is required
-      if (requiresAdmin(action, entity) && user.role !== 'admin') {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Forbidden: Admin access required' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      // Store user in request context for later use
-      (req as any).user = user;
-    }
+
+    // TEST MODE: auth disabled. Provide a stable "system" user context so downstream
+    // handlers that expect req.user (author/role checks) keep working.
+    const systemUser: AppUser = {
+      user_id: 'system',
+      name: 'Система',
+      role: 'admin',
+      telegram_id: '',
+      active: true,
+    };
+    (req as any).user = systemUser;
     
     // INPUT VALIDATION: Enforce text field length limits
     const validateTextFields = (
