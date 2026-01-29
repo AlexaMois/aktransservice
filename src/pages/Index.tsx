@@ -235,8 +235,8 @@ const Index = () => {
       });
     } catch (error) {
       console.error('Error filtering tasks:', error);
-      // Return empty array on error to prevent UI crash
-      return [];
+      // Return safe unfiltered tasks on error to prevent UI crash
+      return safeTasks;
     }
   }, [
     regularTasks,
