@@ -3,7 +3,7 @@ import { Task, TaskStatus, TaskPriority, TaskType, ImportanceRating, Department,
 import { useGSheetsTasks } from "@/hooks/useGSheetsTasks";
 import { useDragOptimistic } from "@/hooks/useDragOptimistic";
 import { useAnnouncementReadStatus, hasUserId } from "@/hooks/useAnnouncementReadStatus";
-import { isAuthenticated, clearSession, isAdmin, getUserId } from "@/lib/auth/session";
+import { isAdmin, getUserId } from "@/lib/auth/session";
 import { useSwipe } from "@/hooks/useSwipe";
 import { useVoiceRecorder, ParsedTask } from "@/hooks/useVoiceRecorder";
 import {
@@ -28,7 +28,6 @@ import { InProgressView } from "@/components/InProgressView";
 
 import { DraggableTaskCard } from "@/components/DraggableTaskCard";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
-import { LoginScreen } from "@/components/LoginScreen";
 import { TaskScopeToggle } from "@/components/TaskScopeToggle";
 import { VoiceRecordButton } from "@/components/VoiceRecordButton";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -42,7 +41,8 @@ import { toast } from "sonner";
 const STATUSES: TaskStatus[] = ["ideas", "planned", "in-progress", "review", "completed"];
 
 const Index = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => isAuthenticated());
+  // TEST MODE: auth disabled (no login screen)
+  const isLoggedIn = true;
   const [taskScope, setTaskScope] = useState<TaskScope>("digitization");
   
   // Fetch tasks from appropriate sheet based on taskScope
@@ -141,25 +141,6 @@ const Index = () => {
 
   // Track read status for announcements
   const { unreadCount, markAllAsRead, isUnread, hasUnread, needsUserName } = useAnnouncementReadStatus(announcements);
-
-  // Handle logout
-  const handleLogout = useCallback(() => {
-    clearSession();
-    setIsLoggedIn(false);
-  }, []);
-
-  // Handle login success
-  const handleLoginSuccess = useCallback(() => {
-    setIsLoggedIn(true);
-    refetch();
-  }, [refetch]);
-
-  // If API says we need auth again, show login screen without hard reload.
-  useEffect(() => {
-    const onAuthRequired = () => setIsLoggedIn(false);
-    window.addEventListener('app:auth-required', onAuthRequired);
-    return () => window.removeEventListener('app:auth-required', onAuthRequired);
-  }, []);
 
   // Mark announcements as read when user opens the tab
   useEffect(() => {
@@ -362,14 +343,9 @@ const Index = () => {
 
   const activeDragTask = activeDragId ? tasksWithOptimistic.find((t) => t.id === activeDragId) : null;
 
-  // Show login screen if not authenticated
-  if (!isLoggedIn) {
-    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
-  }
-
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header onLogout={handleLogout} />
+      <Header />
 
       <main className="flex-1 container mx-auto px-3 sm:px-4 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
