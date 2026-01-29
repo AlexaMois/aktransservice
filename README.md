@@ -71,3 +71,38 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Manual Test Cases
+
+Before releasing, verify these scenarios work correctly:
+
+### Search
+- [ ] Enter any text in "Поиск…" field → no white screen, results filter or show empty list
+- [ ] Enter special characters → no crash
+
+### Announcements  
+- [ ] Open "Объявления" tab → announcements load
+- [ ] Click on announcement card → detail modal opens
+- [ ] Close modal with X or "Закрыть" → "Новое" badge disappears
+- [ ] Refresh page → announcement stays read (no "Новое" badge)
+
+### User Display
+- [ ] Header shows "Гость • XXXX" label in public mode
+- [ ] Badge shows "Публичный доступ"
+
+### Voice Input
+- [ ] "Голосом" button is visible
+- [ ] If browser doesn't support microphone → button disabled with tooltip
+- [ ] If supported → clicking starts recording
+
+### Feedback
+- [ ] "Оставить фидбэк" button visible in header on desktop and mobile
+- [ ] Clicking opens feedback form modal
+
+### Task Deletion
+- [ ] Open any task card → trash icon visible in header
+- [ ] Click trash → confirmation dialog appears
+- [ ] Confirm → task deleted, modal closes
+
+### Error Handling
+- [ ] If any error occurs → error boundary shows friendly message instead of white screen

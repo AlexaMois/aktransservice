@@ -1,32 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Task } from '@/entities/task';
 import { gsheetsReadStatusApi, ReadStatus } from '@/lib/api/gsheets';
-import { getSession } from '@/lib/auth/session';
+import { getStableUserId } from '@/lib/appMode';
 
-// Anonymous user ID for public mode (localStorage based)
-const ANON_USER_KEY = 'app_anonymous_user_id';
-
-function getOrCreateAnonUserId(): string {
-  if (typeof window === 'undefined') return 'anon';
-  let anonId = localStorage.getItem(ANON_USER_KEY);
-  if (!anonId) {
-    anonId = 'anon_' + Math.random().toString(36).substring(2, 15);
-    localStorage.setItem(ANON_USER_KEY, anonId);
-  }
-  return anonId;
-}
-
-/**
- * Get user ID from session or anonymous ID for public mode
- */
-export function getUserId(): string {
-  const session = getSession();
-  return session?.user_id || getOrCreateAnonUserId();
-}
+// Re-export for backward compatibility
+export { getStableUserId as getUserId };
 
 export function hasUserId(): boolean {
-  // Always return true in public mode
-  return true;
+  return true; // Always true - we always have a stable user ID
 }
 
 // Keep these for backward compatibility but they now use session
@@ -41,7 +22,8 @@ export function setUserId(_name: string): void {
 export function useAnnouncementReadStatus(announcements: Task[]) {
   const [readStatuses, setReadStatuses] = useState<ReadStatus[]>([]);
   const [loading, setLoading] = useState(true);
-  const userId = getUserId(); // Always returns a value now
+  const [localReadIds, setLocalReadIds] = useState<Set<string>>(new Set());
+  const userId = getStableUserId();
 
   // Fetch read statuses from Google Sheets
   const fetchReadStatuses = useCallback(async () => {
@@ -59,10 +41,13 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
     fetchReadStatuses();
   }, [fetchReadStatuses]);
 
-  // Set of read announcement IDs for quick lookup
+  // Set of read announcement IDs for quick lookup (includes optimistic local reads)
   const readAnnouncementIds = useMemo(() => {
-    return new Set(readStatuses.map(s => s.announcement_id));
-  }, [readStatuses]);
+    const ids = new Set(readStatuses.map(s => s.announcement_id));
+    // Merge with optimistic local reads
+    localReadIds.forEach(id => ids.add(id));
+    return ids;
+  }, [readStatuses, localReadIds]);
 
   // Count unread announcements
   const unreadCount = useMemo(() => {
@@ -77,11 +62,19 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
 
     if (unreadIds.length === 0) return;
 
+    // Optimistic update
+    setLocalReadIds(prev => {
+      const next = new Set(prev);
+      unreadIds.forEach(id => next.add(id));
+      return next;
+    });
+
     try {
       const newStatuses = await gsheetsReadStatusApi.markAsRead(unreadIds, userId);
       setReadStatuses((prev) => [...prev, ...newStatuses]);
     } catch (error) {
       console.error('Error marking announcements as read:', error);
+      // Keep optimistic update even on error - better UX
     }
   }, [announcements, readAnnouncementIds, userId]);
 
@@ -89,11 +82,16 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
   const markAsRead = useCallback(
     async (announcementId: string) => {
       if (!announcementId || readAnnouncementIds.has(announcementId)) return;
+      
+      // Optimistic update immediately
+      setLocalReadIds(prev => new Set(prev).add(announcementId));
+
       try {
         const newStatuses = await gsheetsReadStatusApi.markAsRead([announcementId], userId);
         setReadStatuses((prev) => [...prev, ...newStatuses]);
       } catch (error) {
         console.error('Error marking announcement as read:', error);
+        // Keep optimistic update even on error
       }
     },
     [readAnnouncementIds, userId]
@@ -111,6 +109,6 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
     isUnread,
     hasUnread: unreadCount > 0,
     loading,
-    needsUserName: false, // Always false in public mode
+    needsUserName: false, // Always false - we always have stable user ID
   };
 }
