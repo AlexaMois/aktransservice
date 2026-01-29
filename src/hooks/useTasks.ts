@@ -11,7 +11,7 @@ import { DigitizationQueueItem, NotAutomatingItem, ExperimentItem } from '@/type
 import { mapToDigitizationQueueItem, mapToNotAutomatingItem, mapToExperimentItem } from '@/lib/typeGuards';
 
 // Re-export GSheets hooks - these are the ONLY way to work with tasks
-export { useGSheetsTasks, useGSheetsAnnouncements, useGSheetsComments } from './useGSheetsTasks';
+export { useGSheetsTasks, useGSheetsComments } from './useGSheetsTasks';
 
 // NOTE: useTasks() for tasks has been REMOVED
 // All task operations MUST go through useGSheetsTasks()

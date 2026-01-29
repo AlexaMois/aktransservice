@@ -42,6 +42,9 @@ interface FeedbackPayload {
   urgency?: string | null;
   screenshot_base64?: string | null;
   screenshot_name?: string | null;
+  // Public mode: user identity from request body
+  user_id?: string;
+  user_name?: string;
 }
 
 const FEEDBACK_COLUMNS = [
@@ -356,18 +359,33 @@ Deno.serve(async (req) => {
     const serviceAccountKey: ServiceAccountKey = JSON.parse(serviceAccountKeyRaw);
     const accessToken = await getAccessToken(serviceAccountKey);
     
-    // Validate session
+    const payload: FeedbackPayload = await req.json();
+    
+    // Support both session-based auth and public mode
+    // In public mode, user_id and user_name come from request body
+    let userId: string;
+    let userName: string;
+    let userRole: string = 'user';
+    
     const sessionHeader = req.headers.get('X-App-Session');
     const session = await validateSession(sessionHeader, accessToken, spreadsheetId);
     
-    if (!session) {
+    if (session) {
+      // Session auth mode
+      userId = session.user_id;
+      userName = session.name;
+      userRole = session.role;
+    } else if (payload.user_id) {
+      // Public mode - use provided identity
+      userId = payload.user_id;
+      userName = payload.user_name || 'Гость';
+    } else {
+      // No identity provided
       return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'User identity required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
-    const payload: FeedbackPayload = await req.json();
     
     // Validate required fields
     if (!payload.type || !payload.title || !payload.description || !payload.area) {
@@ -403,12 +421,12 @@ Deno.serve(async (req) => {
     // Ensure Feedback sheet exists
     await ensureSheetExists(accessToken, 'Feedback', FEEDBACK_COLUMNS, spreadsheetId);
     
-    // Create feedback entry
+    // Create feedback entry using resolved user identity
     const feedbackEntry = {
       id: crypto.randomUUID(),
-      user_id: session.user_id,
-      user_name: session.name,
-      role: session.role,
+      user_id: userId,
+      user_name: userName,
+      role: userRole,
       type: payload.type,
       title: payload.title,
       description: payload.description,

@@ -1,6 +1,11 @@
+/**
+ * Hook to track read/unread status of announcements
+ * Uses unified API client - all logic lives on backend
+ */
+
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Task } from '@/entities/task';
-import { gsheetsReadStatusApi, ReadStatus } from '@/lib/api/gsheets';
+import { announcementsApi } from '@/lib/api/client';
 import { getStableUserId } from '@/lib/appMode';
 
 // Re-export for backward compatibility
@@ -12,11 +17,11 @@ export function hasUserId(): boolean {
 
 // Keep these for backward compatibility but they now use session
 export function setUserId(_name: string): void {
-  // No-op: user ID is now managed by session
-  console.warn('setUserId is deprecated, use session management instead');
+  // No-op: user ID is now managed by appMode
+  console.warn('setUserId is deprecated, use appMode instead');
 }
 
-// LocalStorage key for persisting read status locally (backup)
+// LocalStorage key for persisting read status locally (backup + instant hydration)
 const LOCAL_READ_KEY = 'app_announcement_read_ids';
 
 function getLocalReadIds(): Set<string> {
@@ -40,30 +45,31 @@ function saveLocalReadIds(ids: Set<string>): void {
 }
 
 /**
- * Hook to track read/unread status of announcements using Google Sheets
- * with local persistence as backup
+ * Hook to track read/unread status of announcements
+ * - Uses unified API client
+ * - Local persistence for instant hydration
+ * - Optimistic updates for immediate UI response
  */
 export function useAnnouncementReadStatus(announcements: Task[]) {
-  const [readStatuses, setReadStatuses] = useState<ReadStatus[]>([]);
+  const [serverReadIds, setServerReadIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   // Initialize from localStorage for instant hydration
   const [localReadIds, setLocalReadIds] = useState<Set<string>>(() => getLocalReadIds());
-  const userId = getStableUserId();
   const fetchedRef = useRef(false);
 
-  // Fetch read statuses from Google Sheets
+  // Fetch read statuses from backend
   const fetchReadStatuses = useCallback(async () => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     
     try {
-      const statuses = await gsheetsReadStatusApi.list(userId);
-      setReadStatuses(statuses);
+      const statuses = await announcementsApi.getReadStatus();
+      const ids = new Set(statuses.map(s => s.announcement_id));
+      setServerReadIds(ids);
       
       // Merge server statuses with local ones
-      const serverIds = new Set(statuses.map(s => s.announcement_id));
       setLocalReadIds(prev => {
-        const merged = new Set([...prev, ...serverIds]);
+        const merged = new Set([...prev, ...ids]);
         saveLocalReadIds(merged);
         return merged;
       });
@@ -73,19 +79,17 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, []);
 
   useEffect(() => {
     fetchReadStatuses();
   }, [fetchReadStatuses]);
 
-  // Set of read announcement IDs for quick lookup (includes optimistic local reads)
+  // Combined set of read IDs (server + local)
   const readAnnouncementIds = useMemo(() => {
-    const ids = new Set(readStatuses.map(s => s.announcement_id));
-    // Merge with optimistic local reads
-    localReadIds.forEach(id => ids.add(id));
+    const ids = new Set([...serverReadIds, ...localReadIds]);
     return ids;
-  }, [readStatuses, localReadIds]);
+  }, [serverReadIds, localReadIds]);
 
   // Count unread announcements
   const unreadCount = useMemo(() => {
@@ -100,7 +104,7 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
 
     if (unreadIds.length === 0) return;
 
-    // Optimistic update + persist to localStorage
+    // Optimistic update + persist to localStorage immediately
     setLocalReadIds(prev => {
       const next = new Set(prev);
       unreadIds.forEach(id => next.add(id));
@@ -109,15 +113,19 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
     });
 
     try {
-      const newStatuses = await gsheetsReadStatusApi.markAsRead(unreadIds, userId);
-      setReadStatuses((prev) => [...prev, ...newStatuses]);
+      const newStatuses = await announcementsApi.markAsRead(unreadIds);
+      setServerReadIds(prev => {
+        const next = new Set(prev);
+        newStatuses.forEach(s => next.add(s.announcement_id));
+        return next;
+      });
     } catch (error) {
       console.error('Error marking announcements as read:', error);
-      // Keep optimistic update even on error - localStorage backup ensures persistence
+      // Keep optimistic update even on error - localStorage ensures persistence
     }
-  }, [announcements, readAnnouncementIds, userId]);
+  }, [announcements, readAnnouncementIds]);
 
-  // Mark a single announcement as read (used when opening the modal)
+  // Mark a single announcement as read
   const markAsRead = useCallback(
     async (announcementId: string) => {
       if (!announcementId || readAnnouncementIds.has(announcementId)) return;
@@ -130,14 +138,18 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
       });
 
       try {
-        const newStatuses = await gsheetsReadStatusApi.markAsRead([announcementId], userId);
-        setReadStatuses((prev) => [...prev, ...newStatuses]);
+        const newStatuses = await announcementsApi.markAsRead([announcementId]);
+        setServerReadIds(prev => {
+          const next = new Set(prev);
+          newStatuses.forEach(s => next.add(s.announcement_id));
+          return next;
+        });
       } catch (error) {
         console.error('Error marking announcement as read:', error);
-        // Keep optimistic update even on error - localStorage backup ensures persistence
+        // Keep optimistic update even on error - localStorage ensures persistence
       }
     },
-    [readAnnouncementIds, userId]
+    [readAnnouncementIds]
   );
 
   // Check if a specific announcement is unread

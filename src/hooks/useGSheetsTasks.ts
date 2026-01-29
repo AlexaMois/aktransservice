@@ -1,29 +1,20 @@
 /**
- * Google Sheets Tasks Hook - SINGLE SOURCE OF TRUTH
+ * Google Sheets Tasks Hook - Uses Unified API Client
  * 
- * All task data flows through this hook:
- * useGSheetsTasks → taskApi → gsheetsTasksApi → /gsheets-api → Google Sheets
- * 
- * Architecture:
- * - 'digitization' scope → reads from Tasks sheet (shared)
- * - 'personal' scope → reads from user's personal Tasks_Name sheet
+ * All task data flows through the unified API client:
+ * useGSheetsTasks → tasksApi → /gsheets-api → Google Sheets
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Task, TaskStatus, TaskComment, TaskScope } from '@/entities/task';
-import { Announcement } from '@/types/task';
-import { gsheetsAnnouncementsApi, gsheetsCommentsApi } from '@/lib/api/gsheets';
+import { tasksApi, commentsApi } from '@/lib/api/client';
 import { useSyncStatus } from './useSyncStatus';
-import * as taskApi from '@/entities/task/api';
 
 // Polling interval in milliseconds (30 seconds by default)
 const DEFAULT_POLLING_INTERVAL = 30000;
 
 /**
- * Main hook for task management - ALL tasks come from Google Sheets
- * @param taskScope - 'digitization' for shared Tasks sheet, 'personal' for user's personal sheet
- * @param pollingInterval - how often to refresh data (ms)
- * @param enabled - whether to fetch data
+ * Main hook for task management - ALL tasks come from backend API
  */
 export function useGSheetsTasks(
   taskScope: TaskScope = 'digitization',
@@ -45,7 +36,7 @@ export function useGSheetsTasks(
     enabled: enabled,
   });
 
-  // Fetch tasks from appropriate Google Sheet based on scope
+  // Fetch tasks from API
   const fetchTasks = useCallback(async (showLoading = true) => {
     if (!enabled) {
       setTasks([]);
@@ -57,12 +48,14 @@ export function useGSheetsTasks(
       setLoading(true);
     }
     try {
-      // Fetch from appropriate sheet based on taskScope
-      const data = await taskApi.fetchTasks(taskScope);
-      // Replace state entirely with Google Sheets data - NO merging
-      setTasks(data);
+      const data = await tasksApi.list(taskScope);
+      // Sort by created_at descending
+      const sorted = data.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      setTasks(sorted);
     } catch (error) {
-      console.error('Error fetching tasks from Google Sheets:', error);
+      console.error('Error fetching tasks:', error);
       throw error; // Re-throw for sync status tracking
     } finally {
       setLoading(false);
@@ -83,12 +76,14 @@ export function useGSheetsTasks(
     fetchTasks(true);
   }, [enabled, taskScope, fetchTasks]);
 
-  // Add task and refetch to ensure consistency
+  // Add task via API and refetch
   const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'status'>) => {
     try {
-      // task_scope is already included in the task object
-      const newTask = await taskApi.createTask(task);
-      // IMPORTANT: Refetch from Google Sheets to ensure state is in sync
+      const newTask = await tasksApi.create({
+        ...task,
+        status: 'ideas' as TaskStatus,
+      });
+      // Refetch from API to ensure state is in sync
       await fetchTasks(false);
       return newTask;
     } catch (error) {
@@ -97,11 +92,10 @@ export function useGSheetsTasks(
     }
   };
 
-  // Update task in Google Sheets
+  // Update task via API
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
     try {
-      // Pass current taskScope to update in correct sheet
-      const updatedTask = await taskApi.updateTask(taskId, updates, taskScope);
+      const updatedTask = await tasksApi.update(taskId, updates, taskScope);
       // Update local state immediately for responsiveness
       setTasks((prev) => prev.map((t) => (t.id === taskId ? updatedTask : t)));
       return updatedTask;
@@ -111,11 +105,11 @@ export function useGSheetsTasks(
     }
   };
 
-  // Delete task from Google Sheets
+  // Delete task via API
   const deleteTask = async (taskId: string) => {
     try {
-      // Pass current taskScope to delete from correct sheet
-      await taskApi.deleteTask(taskId, taskScope);
+      await tasksApi.delete(taskId, taskScope);
+      // Remove from local state only after successful API call
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
     } catch (error) {
       console.error('Error deleting task:', error);
@@ -144,34 +138,7 @@ export function useGSheetsTasks(
 }
 
 /**
- * Hook for announcements - Google Sheets only
- */
-export function useGSheetsAnnouncements() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchAnnouncements = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await gsheetsAnnouncementsApi.list();
-      setAnnouncements(data);
-    } catch (error) {
-      console.error('Error fetching announcements:', error);
-      setAnnouncements([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchAnnouncements();
-  }, [fetchAnnouncements]);
-
-  return { announcements, loading, refetch: fetchAnnouncements };
-}
-
-/**
- * Hook for task comments - Google Sheets only
+ * Hook for task comments - Uses unified API
  */
 export function useGSheetsComments(taskId: string) {
   const [comments, setComments] = useState<TaskComment[]>([]);
@@ -184,8 +151,12 @@ export function useGSheetsComments(taskId: string) {
     }
     setLoading(true);
     try {
-      const data = await gsheetsCommentsApi.list(taskId);
-      setComments(data);
+      const data = await commentsApi.list(taskId);
+      // Sort by created_at ascending
+      const sorted = data.sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+      setComments(sorted);
     } catch (error) {
       console.error('Error fetching comments:', error);
       setComments([]);
@@ -200,11 +171,7 @@ export function useGSheetsComments(taskId: string) {
 
   const addComment = async (author: string, text: string): Promise<TaskComment> => {
     try {
-      // Note: author is now set by server from session
-      const newComment = await gsheetsCommentsApi.create({
-        task_id: taskId,
-        text,
-      });
+      const newComment = await commentsApi.create(taskId, text);
       setComments((prev) => [...prev, newComment]);
       return newComment;
     } catch (error) {
