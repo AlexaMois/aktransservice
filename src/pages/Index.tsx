@@ -2,10 +2,11 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { Task, TaskStatus, TaskPriority, TaskType, ImportanceRating, Department, TaskScope, STATUS_LABELS } from "@/entities/task";
 import { useGSheetsTasks } from "@/hooks/useGSheetsTasks";
 import { useDragOptimistic } from "@/hooks/useDragOptimistic";
-import { useAnnouncementReadStatus, getUserId } from "@/hooks/useAnnouncementReadStatus";
-import { isAdmin } from "@/lib/auth/session";
+import { useAnnouncementReadStatus } from "@/hooks/useAnnouncementReadStatus";
+import { getStableUserId, hasAdminUI } from "@/lib/appMode";
 import { useSwipe } from "@/hooks/useSwipe";
 import { useVoiceRecorder, ParsedTask } from "@/hooks/useVoiceRecorder";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   DndContext,
   DragEndEvent,
@@ -55,7 +56,7 @@ const Index = () => {
   const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus>("ideas");
   
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const currentUserId = getUserId();
+  const currentUserId = getStableUserId();
 
   // Optimistic drag & drop with debouncing
   const { updateTaskStatus, tasksWithOptimistic, isTaskSyncing } = useDragOptimistic({
@@ -365,6 +366,7 @@ const Index = () => {
   const activeDragTask = activeDragId ? tasksWithOptimistic.find((t) => t.id === activeDragId) : null;
 
   return (
+    <ErrorBoundary>
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
@@ -453,7 +455,7 @@ const Index = () => {
               ownerFilter={ownerFilter}
               onOwnerFilterChange={setOwnerFilter}
               owners={owners}
-              showOwnerFilter={isAdmin()}
+              showOwnerFilter={hasAdminUI()}
             />
 
             {loading ? (
@@ -620,6 +622,7 @@ const Index = () => {
         defaultTaskType={defaultTaskType}
       />
     </div>
+    </ErrorBoundary>
   );
 };
 
