@@ -151,14 +151,16 @@ export interface ReadStatus {
 }
 
 export const gsheetsReadStatusApi = {
-  async list(): Promise<ReadStatus[]> {
-    // user_id is now taken from session on server side
-    return callGSheetsAPI<ReadStatus[]>('list', 'readStatus', {});
+  async list(userId?: string): Promise<ReadStatus[]> {
+    // In public mode we pass a stable anon_id (localStorage) so read status works without auth.
+    // Server may still fall back to session user_id when available.
+    return callGSheetsAPI<ReadStatus[]>('list', 'readStatus', { user_id: userId });
   },
   
-  async markAsRead(announcementIds: string[]): Promise<ReadStatus[]> {
-    // user_id is now taken from session on server side
-    return callGSheetsAPI<ReadStatus[]>('create', 'readStatus', { announcement_ids: announcementIds });
+  async markAsRead(announcementIds: string[], userId?: string): Promise<ReadStatus[]> {
+    // In public mode we pass a stable anon_id (localStorage) so read status works without auth.
+    // Server may still fall back to session user_id when available.
+    return callGSheetsAPI<ReadStatus[]>('create', 'readStatus', { announcement_ids: announcementIds, user_id: userId });
   },
 };
 

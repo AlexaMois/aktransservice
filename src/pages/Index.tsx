@@ -2,8 +2,8 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { Task, TaskStatus, TaskPriority, TaskType, ImportanceRating, Department, TaskScope, STATUS_LABELS } from "@/entities/task";
 import { useGSheetsTasks } from "@/hooks/useGSheetsTasks";
 import { useDragOptimistic } from "@/hooks/useDragOptimistic";
-import { useAnnouncementReadStatus, hasUserId } from "@/hooks/useAnnouncementReadStatus";
-import { isAdmin, getUserId } from "@/lib/auth/session";
+import { useAnnouncementReadStatus, getUserId } from "@/hooks/useAnnouncementReadStatus";
+import { isAdmin } from "@/lib/auth/session";
 import { useSwipe } from "@/hooks/useSwipe";
 import { useVoiceRecorder, ParsedTask } from "@/hooks/useVoiceRecorder";
 import {
@@ -140,7 +140,7 @@ const Index = () => {
   }, [tasksWithOptimistic]);
 
   // Track read status for announcements
-  const { unreadCount, markAllAsRead, isUnread, hasUnread, needsUserName } = useAnnouncementReadStatus(announcements);
+  const { unreadCount, markAllAsRead, markAsRead, isUnread, hasUnread, needsUserName } = useAnnouncementReadStatus(announcements);
 
   // Mark announcements as read when user opens the tab
   useEffect(() => {
@@ -156,16 +156,24 @@ const Index = () => {
   // Apply filters (only to regular tasks, not announcements)
   // NOTE: Task scope filtering is now done at API level (different sheets), not here
   const filteredTasks = useMemo(() => {
+    const toLowerSafe = (value: unknown) => {
+      if (typeof value === 'string') return value.toLowerCase();
+      if (value === null || value === undefined) return '';
+      return String(value).toLowerCase();
+    };
+
     try {
       return regularTasks.filter((task) => {
+        if (!task || typeof task !== 'object') return false;
+
         // Search filter - with null safety
-        if (searchQuery) {
-          const query = searchQuery.toLowerCase();
-          const title = task.title?.toLowerCase() ?? '';
-          const summary = task.summary?.toLowerCase() ?? '';
-          const description = task.description?.toLowerCase() ?? '';
-          const author = task.author?.toLowerCase() ?? '';
-          const owner = task.owner?.toLowerCase() ?? '';
+        const query = searchQuery.trim().toLowerCase();
+        if (query) {
+          const title = toLowerSafe((task as any).title);
+          const summary = toLowerSafe((task as any).summary);
+          const description = toLowerSafe((task as any).description);
+          const author = toLowerSafe((task as any).author);
+          const owner = toLowerSafe((task as any).owner);
           
           const matchesSearch =
             title.includes(query) ||
@@ -234,7 +242,9 @@ const Index = () => {
     };
 
     filteredTasks.forEach((task) => {
-      grouped[task.status].push(task);
+      const status = task.status as TaskStatus;
+      if (!grouped[status]) return;
+      grouped[status].push(task);
     });
 
     return grouped;
@@ -587,6 +597,7 @@ const Index = () => {
               loading={loading}
               isUnread={isUnread}
               onUpdateAnnouncement={updateTask}
+              onOpenAnnouncement={(a) => markAsRead(a.id)}
             />
           </TabsContent>
         </Tabs>

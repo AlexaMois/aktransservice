@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Task } from '@/entities/task';
 import { gsheetsReadStatusApi, ReadStatus } from '@/lib/api/gsheets';
-import { getSession, isAuthenticated } from '@/lib/auth/session';
+import { getSession } from '@/lib/auth/session';
 
 // Anonymous user ID for public mode (localStorage based)
 const ANON_USER_KEY = 'app_anonymous_user_id';
@@ -46,7 +46,7 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
   // Fetch read statuses from Google Sheets
   const fetchReadStatuses = useCallback(async () => {
     try {
-      const statuses = await gsheetsReadStatusApi.list();
+      const statuses = await gsheetsReadStatusApi.list(userId);
       setReadStatuses(statuses);
     } catch (error) {
       console.error('Error fetching read statuses:', error);
@@ -78,12 +78,26 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
     if (unreadIds.length === 0) return;
 
     try {
-      const newStatuses = await gsheetsReadStatusApi.markAsRead(unreadIds);
+      const newStatuses = await gsheetsReadStatusApi.markAsRead(unreadIds, userId);
       setReadStatuses((prev) => [...prev, ...newStatuses]);
     } catch (error) {
       console.error('Error marking announcements as read:', error);
     }
-  }, [announcements, readAnnouncementIds]);
+  }, [announcements, readAnnouncementIds, userId]);
+
+  // Mark a single announcement as read (used when opening the modal)
+  const markAsRead = useCallback(
+    async (announcementId: string) => {
+      if (!announcementId || readAnnouncementIds.has(announcementId)) return;
+      try {
+        const newStatuses = await gsheetsReadStatusApi.markAsRead([announcementId], userId);
+        setReadStatuses((prev) => [...prev, ...newStatuses]);
+      } catch (error) {
+        console.error('Error marking announcement as read:', error);
+      }
+    },
+    [readAnnouncementIds, userId]
+  );
 
   // Check if a specific announcement is unread
   const isUnread = useCallback((announcement: Task) => {
@@ -93,6 +107,7 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
   return {
     unreadCount,
     markAllAsRead,
+    markAsRead,
     isUnread,
     hasUnread: unreadCount > 0,
     loading,

@@ -1120,11 +1120,14 @@ Deno.serve(async (req) => {
         const user = (req as any).user as AppUser;
         
         await ensureSheetExists(accessToken, sheetName, READ_STATUS_COLUMNS, spreadsheetId);
+
+        // In public mode auth is disabled, so the client passes a stable anon_id.
+        // We still keep session-based fallback for backward compatibility.
+        const userIdFromClient = typeof data?.user_id === 'string' ? data.user_id.trim() : '';
+        const effectiveUserId = userIdFromClient || user.user_id;
         
         if (action === 'list') {
-          // Use session user_id
-          const userId = user.user_id;
-          const cacheKey = `readStatus:list:${userId}`;
+          const cacheKey = `readStatus:list:${effectiveUserId}`;
           const cached = getListCache<any[]>(cacheKey);
           if (cached) {
             result = cached;
@@ -1137,13 +1140,13 @@ Deno.serve(async (req) => {
               const userIdIndex = headers.indexOf('user_id');
               result = rows.slice(1)
                 .map(row => rowToObject(row, headers))
-                .filter(status => status.user_id === userId);
+                .filter(status => status.user_id === effectiveUserId);
             }
             setListCache(cacheKey, result);
           }
         } else if (action === 'create') {
           const now = new Date().toISOString();
-          const userId = user.user_id;
+          const userId = effectiveUserId;
           const announcementIds = data?.announcement_ids || [];
           
           if (announcementIds.length === 0) {

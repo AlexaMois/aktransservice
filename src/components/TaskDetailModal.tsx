@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Task, TaskStatus, STATUS_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS, IMPORTANCE_LABELS, DEPARTMENT_LABELS } from '@/entities/task';
 import { useGSheetsComments } from '@/hooks/useGSheetsTasks';
-import { isAdmin } from '@/lib/auth/session';
 import { formatDateSafe } from '@/lib/utils';
 import {
   Dialog,
@@ -85,7 +84,6 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const logTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const userIsAdmin = isAdmin();
 
   // Sync local state when task changes
   useEffect(() => {
@@ -237,7 +235,7 @@ export function TaskDetailModal({ task, open, onClose, allTasks = [], onTaskUpda
                 {task.title}
               </DialogTitle>
             </div>
-            {userIsAdmin && onDeleteTask && (
+            {onDeleteTask && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
