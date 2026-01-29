@@ -13,6 +13,7 @@ interface AnnouncementsListProps {
   loading: boolean;
   isUnread?: (announcement: Task) => boolean;
   onUpdateAnnouncement?: (id: string, updates: Partial<Task>) => Promise<Task>;
+  onOpenAnnouncement?: (announcement: Task) => void | Promise<void>;
 }
 
 export function AnnouncementsList({ 
@@ -20,6 +21,7 @@ export function AnnouncementsList({
   loading, 
   isUnread,
   onUpdateAnnouncement,
+  onOpenAnnouncement,
 }: AnnouncementsListProps) {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Task | null>(null);
 
@@ -60,7 +62,10 @@ export function AnnouncementsList({
             key={announcement.id} 
             announcement={announcement} 
             isNew={isUnread?.(announcement)}
-            onClick={() => setSelectedAnnouncement(announcement)}
+            onClick={() => {
+              void onOpenAnnouncement?.(announcement);
+              setSelectedAnnouncement(announcement);
+            }}
           />
         ))}
       </div>

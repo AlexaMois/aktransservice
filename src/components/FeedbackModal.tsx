@@ -120,7 +120,7 @@ export function FeedbackModal() {
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="gap-2">
           <MessageSquarePlus className="h-4 w-4" />
-          <span className="hidden sm:inline">Оставить фидбэк</span>
+          <span>Оставить фидбэк</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
