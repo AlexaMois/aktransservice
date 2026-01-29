@@ -99,8 +99,8 @@ export function AnnouncementDetailModal({
   if (!announcement) return null;
   
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] p-0 gap-0">
+    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] p-0 gap-0" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader className="px-4 sm:px-6 py-4 border-b">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-primary/10 rounded-lg shrink-0">
