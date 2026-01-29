@@ -3,6 +3,16 @@ import { Announcement } from '@/types/task';
 import { clearSession, getSession } from '@/lib/auth/session';
 import { edgeFetch, base64UrlEncodeUtf8 } from '@/shared/api/edgeFetch';
 
+function notifyAuthRequired() {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('app:auth-required'));
+}
+
+function notifyRateLimited(retryAfterMs: number) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('app:rate-limited', { detail: { retryAfterMs } }));
+}
+
 interface GSheetsAPIResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -41,8 +51,13 @@ async function callGSheetsAPI<T = unknown>(
     // If server didn't return JSON, still surface a useful error
     if (response.status === 401) {
       clearSession();
-      if (typeof window !== 'undefined') window.location.reload();
+      notifyAuthRequired();
       throw new Error('Требуется авторизация');
+    }
+    if (response.status === 429) {
+      const retryAfterSec = Number(response.headers.get('retry-after') || '60');
+      notifyRateLimited(Math.max(5, retryAfterSec) * 1000);
+      throw new Error('Лимит обращений к Google Sheets исчерпан. Попробуйте позже.');
     }
     throw new Error(`Ошибка сервера (${response.status}). Попробуйте обновить страницу.`);
   }
@@ -52,8 +67,13 @@ async function callGSheetsAPI<T = unknown>(
     if (response.status === 401) {
       // Session is no longer valid (e.g., after reset). Clear it and return user to login.
       clearSession();
-      if (typeof window !== 'undefined') window.location.reload();
+      notifyAuthRequired();
       throw new Error('Требуется авторизация');
+    }
+    if (response.status === 429) {
+      const retryAfterSec = Number(response.headers.get('retry-after') || '60');
+      notifyRateLimited(Math.max(5, retryAfterSec) * 1000);
+      throw new Error(result.error || 'Лимит обращений к Google Sheets исчерпан. Попробуйте позже.');
     }
     if (response.status === 403) {
       throw new Error(result.error || 'Доступ запрещён');

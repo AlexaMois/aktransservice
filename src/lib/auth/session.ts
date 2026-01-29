@@ -43,26 +43,25 @@ export function hasLoggedBefore(): boolean {
 }
 
 export function isAuthenticated(): boolean {
-  // Auth disabled for testing - always return true
-  return true;
+  return getSession() !== null;
 }
 
 export function isAdmin(): boolean {
-  // Auth disabled for testing - always admin
-  return true;
+  const session = getSession();
+  return session?.role === 'admin';
 }
 
 export function getUserName(): string {
-  // Auth disabled for testing - return test user name
-  return 'Тестовый пользователь';
+  const session = getSession();
+  return session?.name || 'Аноним';
 }
 
 export function getUserId(): string | null {
-  // Auth disabled for testing - return test user ID
-  return 'test-user-id';
+  const session = getSession();
+  return session?.user_id || null;
 }
 
 export function getUserRole(): 'admin' | 'user' | null {
-  // Auth disabled for testing - always admin
-  return 'admin';
+  const session = getSession();
+  return session?.role || null;
 }

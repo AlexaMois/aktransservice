@@ -42,13 +42,12 @@ import { toast } from "sonner";
 const STATUSES: TaskStatus[] = ["ideas", "planned", "in-progress", "review", "completed"];
 
 const Index = () => {
-  // Auth disabled for testing - always logged in
-  const [isLoggedIn] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => isAuthenticated());
   const [taskScope, setTaskScope] = useState<TaskScope>("digitization");
   
   // Fetch tasks from appropriate sheet based on taskScope
   const { tasks, loading, addTask, updateTask, deleteTask, refetch, syncStatus, lastSyncTime, manualSync } =
-    useGSheetsTasks(taskScope, undefined, true);
+    useGSheetsTasks(taskScope, undefined, isLoggedIn);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [defaultTaskType, setDefaultTaskType] = useState<TaskType>("idea");
@@ -143,9 +142,23 @@ const Index = () => {
   // Track read status for announcements
   const { unreadCount, markAllAsRead, isUnread, hasUnread, needsUserName } = useAnnouncementReadStatus(announcements);
 
-  // Handle logout - disabled for testing
+  // Handle logout
   const handleLogout = useCallback(() => {
-    // No-op: auth disabled for testing
+    clearSession();
+    setIsLoggedIn(false);
+  }, []);
+
+  // Handle login success
+  const handleLoginSuccess = useCallback(() => {
+    setIsLoggedIn(true);
+    refetch();
+  }, [refetch]);
+
+  // If API says we need auth again, show login screen without hard reload.
+  useEffect(() => {
+    const onAuthRequired = () => setIsLoggedIn(false);
+    window.addEventListener('app:auth-required', onAuthRequired);
+    return () => window.removeEventListener('app:auth-required', onAuthRequired);
   }, []);
 
   // Mark announcements as read when user opens the tab
@@ -349,7 +362,10 @@ const Index = () => {
 
   const activeDragTask = activeDragId ? tasksWithOptimistic.find((t) => t.id === activeDragId) : null;
 
-  // Auth disabled for testing - always show main app
+  // Show login screen if not authenticated
+  if (!isLoggedIn) {
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
