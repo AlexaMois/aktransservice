@@ -44,6 +44,39 @@ const SHEETS = {
   loginLogs: 'LoginLogs',
 };
 
+// -----------------------------
+// Quota protection (Google Sheets)
+// -----------------------------
+// Edge instances are ephemeral, but even short-lived in-memory caching
+// dramatically reduces read spikes and helps avoid 429 quota errors.
+
+const ENSURE_SHEET_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const ensuredSheets = new Map<string, number>();
+
+const LIST_CACHE_TTL_MS = 8 * 1000; // 8 seconds
+type CacheEntry = { expiresAt: number; value: unknown };
+const listCache = new Map<string, CacheEntry>();
+
+function getListCache<T>(key: string): T | null {
+  const entry = listCache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    listCache.delete(key);
+    return null;
+  }
+  return entry.value as T;
+}
+
+function setListCache(key: string, value: unknown, ttlMs = LIST_CACHE_TTL_MS) {
+  listCache.set(key, { expiresAt: Date.now() + ttlMs, value });
+}
+
+function invalidateListCache(prefix: string) {
+  for (const key of listCache.keys()) {
+    if (key.startsWith(prefix)) listCache.delete(key);
+  }
+}
+
 // Transliteration map for generating personal sheet names from Cyrillic names
 const TRANSLIT_MAP: Record<string, string> = {
   'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e',
@@ -243,6 +276,10 @@ function idx(headers: string[], key: string): number {
 
 // Sheet helper functions
 async function ensureSheetExists(accessToken: string, sheetName: string, headers: string[], spreadsheetId: string): Promise<void> {
+  const cacheKey = `ensure:${sheetName}`;
+  const cachedUntil = ensuredSheets.get(cacheKey);
+  if (cachedUntil && cachedUntil > Date.now()) return;
+
   try {
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!1:1`;
     const response = await fetch(url, {
@@ -254,6 +291,7 @@ async function ensureSheetExists(accessToken: string, sheetName: string, headers
       if (!data.values || data.values.length === 0) {
         await updateRow(accessToken, sheetName, 1, headers, spreadsheetId);
       }
+      ensuredSheets.set(cacheKey, Date.now() + ENSURE_SHEET_TTL_MS);
       return;
     }
     
@@ -275,6 +313,7 @@ async function ensureSheetExists(accessToken: string, sheetName: string, headers
     
     if (createResponse.ok) {
       await appendRow(accessToken, sheetName, headers, spreadsheetId);
+      ensuredSheets.set(cacheKey, Date.now() + ENSURE_SHEET_TTL_MS);
     }
   } catch (e) {
     console.log('Sheet check/create error (non-fatal):', e);
@@ -484,17 +523,30 @@ async function validateSession(
 }
 
 // Check if action requires admin role
-// DISABLED FOR TESTING - no admin restrictions
 function requiresAdmin(action: string, entity: string): boolean {
-  // Admin check disabled for testing
+  // Announcements: only admin can create/update/delete
+  if (entity === 'announcements' && ['create', 'update', 'delete'].includes(action)) {
+    return true;
+  }
+  // Task status change to completed requires admin
+  // (checked separately in task update logic)
   return false;
 }
 
 // Check if action requires authentication
-// DISABLED FOR TESTING - all actions are public
 function requiresAuth(action: string, entity: string): boolean {
-  // Auth disabled for testing
-  return false;
+  // Login doesn't require auth (it's the auth endpoint)
+  if (entity === 'users' && action === 'login') {
+    return false;
+  }
+  // Init-whitelist action requires special handling (secret key instead of session)
+  if (entity === 'users' && action === 'init-whitelist') {
+    return false;
+  }
+  // Share action can use secret key OR admin session
+  // (we check admin role inside the action handler)
+  // All other actions require auth
+  return true;
 }
 
 Deno.serve(async (req) => {
@@ -833,21 +885,28 @@ Deno.serve(async (req) => {
         await ensureSheetExists(accessToken, sheetName, TASK_COLUMNS, spreadsheetId);
         
         if (action === 'list') {
-          const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
-          if (rows.length <= 1) {
-            // Only header row or empty
-            result = [];
+          const cacheKey = `tasks:list:${sheetName}`;
+          const cached = getListCache<any[]>(cacheKey);
+          if (cached) {
+            result = cached;
           } else {
-            const headers = rows[0];
-            // Map rows and ensure task_scope is set
-            result = rows.slice(1).map(row => {
-              const task = rowToObject(row, headers);
-              // Ensure task_scope is set for compatibility
-              if (!task.task_scope) {
-                task.task_scope = requestedScope;
-              }
-              return task;
-            });
+            const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
+            if (rows.length <= 1) {
+              // Only header row or empty
+              result = [];
+            } else {
+              const headers = rows[0];
+              // Map rows and ensure task_scope is set
+              result = rows.slice(1).map(row => {
+                const task = rowToObject(row, headers);
+                // Ensure task_scope is set for compatibility
+                if (!task.task_scope) {
+                  task.task_scope = requestedScope;
+                }
+                return task;
+              });
+            }
+            setListCache(cacheKey, result);
           }
         } else if (action === 'create') {
           const now = new Date().toISOString();
@@ -886,6 +945,7 @@ Deno.serve(async (req) => {
           };
           const row = objectToRow(newTask, TASK_COLUMNS);
           await appendRow(accessToken, sheetName, row, spreadsheetId);
+          invalidateListCache(`tasks:list:${sheetName}`);
           result = newTask;
         } else if (action === 'update' && id) {
           const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
@@ -896,10 +956,31 @@ Deno.serve(async (req) => {
           if (rowIndex === -1) throw new Error('Task not found');
           
           const existingTask = rowToObject(rows[rowIndex], headers);
-          
-          // SECURITY: Auth disabled for testing - skip completed status check
-          
-          // PERMISSION LOGIC: Disabled for testing - all updates allowed
+
+          // SECURITY: Only admin can change status to completed
+          if (data.status === 'completed' && existingTask.status !== 'completed' && user.role !== 'admin') {
+            return new Response(
+              JSON.stringify({ success: false, error: 'Только администратор может отмечать задачи как завершённые' }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
+          // PERMISSION LOGIC:
+          // - Admin can update any task
+          // - Regular users can update status (drag-drop) for any task
+          // - Regular users can edit only their own tasks (author matches)
+          // Note: task_scope is only used to determine the sheet, not considered a real update
+          const updateKeys = Object.keys(data).filter(k => k !== 'task_scope');
+          const isStatusOnlyUpdate = updateKeys.length === 1 && updateKeys[0] === 'status';
+          const isOwnTask = existingTask.author === user.name;
+          const canUpdate = user.role === 'admin' || isStatusOnlyUpdate || isOwnTask;
+
+          if (!canUpdate) {
+            return new Response(
+              JSON.stringify({ success: false, error: 'Вы можете редактировать только свои задачи' }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
           
           // SECURITY: Ignore author field, task_scope (used for sheet selection), and deprecated fields
           const { author: _author, effect_type: _effect, digitization_section: _section, task_scope: _scope, ...safeData } = data;
@@ -920,6 +1001,7 @@ Deno.serve(async (req) => {
           };
           const row = objectToRow(updatedTask, TASK_COLUMNS);
           await updateRow(accessToken, sheetName, rowIndex + 1, row, spreadsheetId);
+          invalidateListCache(`tasks:list:${sheetName}`);
           result = updatedTask;
         } else if (action === 'delete' && id) {
           // Only admin can delete
@@ -938,6 +1020,7 @@ Deno.serve(async (req) => {
           if (rowIndex === -1) throw new Error('Task not found');
           
           await deleteRow(accessToken, sheetName, rowIndex + 1, spreadsheetId);
+          invalidateListCache(`tasks:list:${sheetName}`);
           result = { deleted: true };
         }
         break;
@@ -948,22 +1031,29 @@ Deno.serve(async (req) => {
         const user = (req as any).user as AppUser;
         
         if (action === 'list') {
-          const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
-          if (rows.length === 0) {
-            result = [];
+          const cacheKey = 'announcements:list';
+          const cached = getListCache<any[]>(cacheKey);
+          if (cached) {
+            result = cached;
           } else {
-            const headers = rows[0];
-            result = rows.slice(1).map(row => {
-              const item = rowToObject(row, headers);
-              if (item.related_task_ids && typeof item.related_task_ids === 'string') {
-                try {
-                  item.related_task_ids = JSON.parse(item.related_task_ids);
-                } catch {
-                  item.related_task_ids = [];
+            const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
+            if (rows.length === 0) {
+              result = [];
+            } else {
+              const headers = rows[0];
+              result = rows.slice(1).map(row => {
+                const item = rowToObject(row, headers);
+                if (item.related_task_ids && typeof item.related_task_ids === 'string') {
+                  try {
+                    item.related_task_ids = JSON.parse(item.related_task_ids);
+                  } catch {
+                    item.related_task_ids = [];
+                  }
                 }
-              }
-              return item;
-            });
+                return item;
+              });
+            }
+            setListCache(cacheKey, result);
           }
         } else if (action === 'create') {
           // Admin check already done above
@@ -978,6 +1068,7 @@ Deno.serve(async (req) => {
           };
           const row = objectToRow(newItem, ANNOUNCEMENT_COLUMNS);
           await appendRow(accessToken, sheetName, row, spreadsheetId);
+          invalidateListCache('announcements:list');
           result = newItem;
         } else if (action === 'update' && id) {
           // Admin check already done above
@@ -996,6 +1087,7 @@ Deno.serve(async (req) => {
           };
           const row = objectToRow(updatedItem, ANNOUNCEMENT_COLUMNS);
           await updateRow(accessToken, sheetName, rowIndex + 1, row, spreadsheetId);
+          invalidateListCache('announcements:list');
           result = updatedItem;
         } else if (action === 'delete' && id) {
           // Admin check already done above
@@ -1007,6 +1099,7 @@ Deno.serve(async (req) => {
           if (rowIndex === -1) throw new Error('Announcement not found');
           
           await deleteRow(accessToken, sheetName, rowIndex + 1, spreadsheetId);
+          invalidateListCache('announcements:list');
           result = { deleted: true };
         }
         break;
@@ -1018,15 +1111,22 @@ Deno.serve(async (req) => {
         
         if (action === 'list') {
           const taskId = data?.task_id;
-          const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
-          if (rows.length === 0) {
-            result = [];
+          const cacheKey = `comments:list:${taskId || 'all'}`;
+          const cached = getListCache<any[]>(cacheKey);
+          if (cached) {
+            result = cached;
           } else {
-            const headers = rows[0];
-            const taskIdIndex = headers.indexOf('task_id');
-            result = rows.slice(1)
-              .map(row => rowToObject(row, headers))
-              .filter(comment => !taskId || comment.task_id === taskId);
+            const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
+            if (rows.length === 0) {
+              result = [];
+            } else {
+              const headers = rows[0];
+              const taskIdIndex = headers.indexOf('task_id');
+              result = rows.slice(1)
+                .map(row => rowToObject(row, headers))
+                .filter(comment => !taskId || comment.task_id === taskId);
+            }
+            setListCache(cacheKey, result);
           }
         } else if (action === 'create') {
           const now = new Date().toISOString();
@@ -1039,6 +1139,7 @@ Deno.serve(async (req) => {
           };
           const row = objectToRow(newComment, COMMENT_COLUMNS);
           await appendRow(accessToken, sheetName, row, spreadsheetId);
+          invalidateListCache('comments:list:');
           result = newComment;
         }
         break;
@@ -1053,15 +1154,22 @@ Deno.serve(async (req) => {
         if (action === 'list') {
           // Use session user_id
           const userId = user.user_id;
-          const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
-          if (rows.length <= 1) {
-            result = [];
+          const cacheKey = `readStatus:list:${userId}`;
+          const cached = getListCache<any[]>(cacheKey);
+          if (cached) {
+            result = cached;
           } else {
-            const headers = rows[0];
-            const userIdIndex = headers.indexOf('user_id');
-            result = rows.slice(1)
-              .map(row => rowToObject(row, headers))
-              .filter(status => status.user_id === userId);
+            const rows = await getSheetData(accessToken, sheetName, spreadsheetId);
+            if (rows.length <= 1) {
+              result = [];
+            } else {
+              const headers = rows[0];
+              const userIdIndex = headers.indexOf('user_id');
+              result = rows.slice(1)
+                .map(row => rowToObject(row, headers))
+                .filter(status => status.user_id === userId);
+            }
+            setListCache(cacheKey, result);
           }
         } else if (action === 'create') {
           const now = new Date().toISOString();
@@ -1099,7 +1207,8 @@ Deno.serve(async (req) => {
               newStatuses.push(newStatus);
             }
           }
-          
+
+          invalidateListCache(`readStatus:list:${userId}`);
           result = newStatuses;
         }
         break;
