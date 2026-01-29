@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Task } from '@/entities/task';
 import { gsheetsReadStatusApi, ReadStatus } from '@/lib/api/gsheets';
 import { getStableUserId } from '@/lib/appMode';
@@ -16,22 +16,60 @@ export function setUserId(_name: string): void {
   console.warn('setUserId is deprecated, use session management instead');
 }
 
+// LocalStorage key for persisting read status locally (backup)
+const LOCAL_READ_KEY = 'app_announcement_read_ids';
+
+function getLocalReadIds(): Set<string> {
+  try {
+    const stored = localStorage.getItem(LOCAL_READ_KEY);
+    if (stored) {
+      return new Set(JSON.parse(stored));
+    }
+  } catch {
+    // ignore
+  }
+  return new Set();
+}
+
+function saveLocalReadIds(ids: Set<string>): void {
+  try {
+    localStorage.setItem(LOCAL_READ_KEY, JSON.stringify([...ids]));
+  } catch {
+    // ignore
+  }
+}
+
 /**
  * Hook to track read/unread status of announcements using Google Sheets
+ * with local persistence as backup
  */
 export function useAnnouncementReadStatus(announcements: Task[]) {
   const [readStatuses, setReadStatuses] = useState<ReadStatus[]>([]);
   const [loading, setLoading] = useState(true);
-  const [localReadIds, setLocalReadIds] = useState<Set<string>>(new Set());
+  // Initialize from localStorage for instant hydration
+  const [localReadIds, setLocalReadIds] = useState<Set<string>>(() => getLocalReadIds());
   const userId = getStableUserId();
+  const fetchedRef = useRef(false);
 
   // Fetch read statuses from Google Sheets
   const fetchReadStatuses = useCallback(async () => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    
     try {
       const statuses = await gsheetsReadStatusApi.list(userId);
       setReadStatuses(statuses);
+      
+      // Merge server statuses with local ones
+      const serverIds = new Set(statuses.map(s => s.announcement_id));
+      setLocalReadIds(prev => {
+        const merged = new Set([...prev, ...serverIds]);
+        saveLocalReadIds(merged);
+        return merged;
+      });
     } catch (error) {
       console.error('Error fetching read statuses:', error);
+      // On error, keep using local storage backup
     } finally {
       setLoading(false);
     }
@@ -62,10 +100,11 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
 
     if (unreadIds.length === 0) return;
 
-    // Optimistic update
+    // Optimistic update + persist to localStorage
     setLocalReadIds(prev => {
       const next = new Set(prev);
       unreadIds.forEach(id => next.add(id));
+      saveLocalReadIds(next);
       return next;
     });
 
@@ -74,7 +113,7 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
       setReadStatuses((prev) => [...prev, ...newStatuses]);
     } catch (error) {
       console.error('Error marking announcements as read:', error);
-      // Keep optimistic update even on error - better UX
+      // Keep optimistic update even on error - localStorage backup ensures persistence
     }
   }, [announcements, readAnnouncementIds, userId]);
 
@@ -83,15 +122,19 @@ export function useAnnouncementReadStatus(announcements: Task[]) {
     async (announcementId: string) => {
       if (!announcementId || readAnnouncementIds.has(announcementId)) return;
       
-      // Optimistic update immediately
-      setLocalReadIds(prev => new Set(prev).add(announcementId));
+      // Optimistic update immediately + persist to localStorage
+      setLocalReadIds(prev => {
+        const next = new Set(prev).add(announcementId);
+        saveLocalReadIds(next);
+        return next;
+      });
 
       try {
         const newStatuses = await gsheetsReadStatusApi.markAsRead([announcementId], userId);
         setReadStatuses((prev) => [...prev, ...newStatuses]);
       } catch (error) {
         console.error('Error marking announcement as read:', error);
-        // Keep optimistic update even on error
+        // Keep optimistic update even on error - localStorage backup ensures persistence
       }
     },
     [readAnnouncementIds, userId]

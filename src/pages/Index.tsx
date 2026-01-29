@@ -157,31 +157,47 @@ const Index = () => {
   // Apply filters (only to regular tasks, not announcements)
   // NOTE: Task scope filtering is now done at API level (different sheets), not here
   const filteredTasks = useMemo(() => {
-    const toLowerSafe = (value: unknown) => {
-      if (typeof value === 'string') return value.toLowerCase();
+    // Robust null-safe string conversion
+    const toLowerSafe = (value: unknown): string => {
       if (value === null || value === undefined) return '';
-      return String(value).toLowerCase();
+      if (typeof value === 'string') return value.toLowerCase();
+      if (typeof value === 'number' || typeof value === 'boolean') return String(value).toLowerCase();
+      if (Array.isArray(value)) return value.join(' ').toLowerCase();
+      if (typeof value === 'object') {
+        try {
+          return JSON.stringify(value).toLowerCase();
+        } catch {
+          return '';
+        }
+      }
+      return '';
     };
 
-    try {
-      return regularTasks.filter((task) => {
-        if (!task || typeof task !== 'object') return false;
+    // Pre-filter to only valid tasks
+    const safeTasks = (regularTasks ?? []).filter((t): t is Task => 
+      t !== null && t !== undefined && typeof t === 'object' && 'id' in t
+    );
 
-        // Search filter - with null safety
-        const query = searchQuery.trim().toLowerCase();
+    try {
+      const query = (searchQuery ?? '').trim().toLowerCase();
+      
+      return safeTasks.filter((task) => {
+        // Search filter - with comprehensive null safety
         if (query) {
-          const title = toLowerSafe((task as any).title);
-          const summary = toLowerSafe((task as any).summary);
-          const description = toLowerSafe((task as any).description);
-          const author = toLowerSafe((task as any).author);
-          const owner = toLowerSafe((task as any).owner);
+          const searchableFields = [
+            task.title,
+            task.summary,
+            task.description,
+            task.author,
+            task.owner,
+            task.problem_description,
+            task.execution_log,
+          ];
           
-          const matchesSearch =
-            title.includes(query) ||
-            summary.includes(query) ||
-            description.includes(query) ||
-            author.includes(query) ||
-            owner.includes(query);
+          const matchesSearch = searchableFields.some(field => 
+            toLowerSafe(field).includes(query)
+          );
+          
           if (!matchesSearch) return false;
         }
 
@@ -219,7 +235,8 @@ const Index = () => {
       });
     } catch (error) {
       console.error('Error filtering tasks:', error);
-      return regularTasks; // Return unfiltered on error
+      // Return empty array on error to prevent UI crash
+      return [];
     }
   }, [
     regularTasks,
