@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
-import { getStableUserId, getDisplayName } from '@/lib/appMode';
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+import { edgeFetchJson, base64UrlEncodeUtf8 } from '@/shared/api/edgeFetch';
+import { getSession } from '@/lib/auth/session';
 
 interface FeedbackPayload {
   type: string;
@@ -37,6 +35,16 @@ export function useFeedback() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const submitFeedback = async (payload: FeedbackPayload): Promise<boolean> => {
+    const session = getSession();
+    if (!session) {
+      toast({
+        title: 'Ошибка',
+        description: 'Необходима авторизация',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -48,17 +56,13 @@ export function useFeedback() {
         screenshotName = payload.screenshot.name;
       }
 
-      // Use stable user identity from appMode
-      const userId = getStableUserId();
-      const displayName = getDisplayName();
+      const headers: Record<string, string> = {
+        'X-App-Session': base64UrlEncodeUtf8(JSON.stringify(session)),
+      };
 
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/feedback`, {
+      const response = await edgeFetchJson<FeedbackResponse>('/feedback', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        },
+        headers,
         body: JSON.stringify({
           type: payload.type,
           title: payload.title,
@@ -67,23 +71,11 @@ export function useFeedback() {
           urgency: payload.urgency,
           screenshot_base64: screenshotBase64,
           screenshot_name: screenshotName,
-          // Include user identity
-          user_id: userId,
-          user_name: displayName,
         }),
       });
 
-      const text = await response.text();
-      let result: FeedbackResponse;
-      
-      try {
-        result = text ? JSON.parse(text) : { success: false };
-      } catch {
-        throw new Error(`Ошибка сервера (${response.status})`);
-      }
-
-      if (!result.success) {
-        throw new Error(result.error || 'Не удалось отправить фидбэк');
+      if (!response.success) {
+        throw new Error(response.error || 'Не удалось отправить фидбэк');
       }
 
       toast({
