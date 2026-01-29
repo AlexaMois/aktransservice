@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import React, { memo, forwardRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { Task, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from '@/entities/task';
 import { Card } from '@/components/ui/card';
@@ -25,21 +25,18 @@ const TaskTypeIcon = ({ type }: { type: Task['task_type'] }) => {
   return <Icon className="h-3 w-3" />;
 };
 
-export const DraggableTaskCard = memo(function DraggableTaskCard({ task, onClick, isSyncing }: DraggableTaskCardProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: task.id,
-    data: { task },
-  });
-
+// Inner component that receives the draggable ref
+const DraggableTaskCardInner = forwardRef<HTMLDivElement, DraggableTaskCardProps & { 
+  isDragging: boolean;
+  style: React.CSSProperties;
+  listeners: Record<string, unknown>;
+  attributes: Record<string, unknown>;
+}>(function DraggableTaskCardInner({ task, onClick, isSyncing, isDragging, style, listeners, attributes }, ref) {
   const importanceStyles = getImportanceStyles(task.importance);
-
-  const style = {
-    transform: CSS.Translate.toString(transform),
-  };
 
   return (
     <Card 
-      ref={setNodeRef}
+      ref={ref}
       style={style}
       {...listeners}
       {...attributes}
@@ -80,5 +77,29 @@ export const DraggableTaskCard = memo(function DraggableTaskCard({ task, onClick
         {task.summary}
       </p>
     </Card>
+  );
+});
+
+export const DraggableTaskCard = memo(function DraggableTaskCard({ task, onClick, isSyncing }: DraggableTaskCardProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+    data: { task },
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+  };
+
+  return (
+    <DraggableTaskCardInner
+      ref={setNodeRef}
+      task={task}
+      onClick={onClick}
+      isSyncing={isSyncing}
+      isDragging={isDragging}
+      style={style}
+      listeners={listeners as unknown as Record<string, unknown>}
+      attributes={attributes as unknown as Record<string, unknown>}
+    />
   );
 });
