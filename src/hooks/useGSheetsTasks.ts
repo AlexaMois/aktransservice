@@ -21,12 +21,13 @@ const DEFAULT_POLLING_INTERVAL = 30000;
 
 /**
  * Main hook for task management - ALL tasks come from Google Sheets
- * @param taskScope - 'digitization' for shared Tasks sheet, 'personal' for user's personal sheet
+ * TEMPORARY: taskScope is ignored - all tasks come from main Tasks sheet
+ * @param taskScope - currently ignored (all tasks from main sheet)
  * @param pollingInterval - how often to refresh data (ms)
  * @param enabled - whether to fetch data
  */
 export function useGSheetsTasks(
-  taskScope: TaskScope = 'digitization',
+  _taskScope: TaskScope = 'digitization', // Ignored for now
   pollingInterval = DEFAULT_POLLING_INTERVAL, 
   enabled = true
 ) {
@@ -34,13 +35,16 @@ export function useGSheetsTasks(
   const [loading, setLoading] = useState(true);
   const isInitialLoad = useRef(true);
   
+  // TEMPORARY: Always use 'digitization' to get all tasks from main sheet
+  const taskScope: TaskScope = 'digitization';
+  
   const { 
     status: syncStatus, 
     lastSyncTime, 
     error: syncError, 
     sync, 
     setSyncCallback 
-  } = useSyncStatus({ 
+  } = useSyncStatus({
     pollingInterval, 
     enabled: enabled,
   });
@@ -83,16 +87,18 @@ export function useGSheetsTasks(
     fetchTasks(true);
   }, [enabled, taskScope, fetchTasks]);
 
-  // Add task and refetch to ensure consistency
+  // Add task and ALWAYS refetch to ensure consistency with Google Sheets
   const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'status'>) => {
     try {
-      // task_scope is already included in the task object
+      // Create task in Google Sheets
       const newTask = await taskApi.createTask(task);
-      // IMPORTANT: Refetch from Google Sheets to ensure state is in sync
+      console.log('[useGSheetsTasks] Task created, refetching from Google Sheets...');
+      // CRITICAL: Always refetch from Google Sheets to ensure state matches the source of truth
       await fetchTasks(false);
+      console.log('[useGSheetsTasks] Refetch complete');
       return newTask;
     } catch (error) {
-      console.error('Error adding task:', error);
+      console.error('[useGSheetsTasks] Error adding task:', error);
       throw error;
     }
   };
@@ -100,13 +106,13 @@ export function useGSheetsTasks(
   // Update task in Google Sheets
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
     try {
-      // Pass current taskScope to update in correct sheet
-      const updatedTask = await taskApi.updateTask(taskId, updates, taskScope);
+      // Always use 'digitization' since all tasks are in main sheet now
+      const updatedTask = await taskApi.updateTask(taskId, updates, 'digitization');
       // Update local state immediately for responsiveness
       setTasks((prev) => prev.map((t) => (t.id === taskId ? updatedTask : t)));
       return updatedTask;
     } catch (error) {
-      console.error('Error updating task:', error);
+      console.error('[useGSheetsTasks] Error updating task:', error);
       throw error;
     }
   };
@@ -114,11 +120,11 @@ export function useGSheetsTasks(
   // Delete task from Google Sheets
   const deleteTask = async (taskId: string) => {
     try {
-      // Pass current taskScope to delete from correct sheet
-      await taskApi.deleteTask(taskId, taskScope);
+      // Always use 'digitization' since all tasks are in main sheet now
+      await taskApi.deleteTask(taskId, 'digitization');
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
     } catch (error) {
-      console.error('Error deleting task:', error);
+      console.error('[useGSheetsTasks] Error deleting task:', error);
       throw error;
     }
   };

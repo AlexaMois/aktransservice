@@ -320,6 +320,42 @@ async function ensureSheetExists(accessToken: string, sheetName: string, headers
   }
 }
 
+// Valid task statuses for normalization
+const VALID_TASK_STATUSES = ['ideas', 'planned', 'in-progress', 'review', 'completed'];
+
+// Status aliases mapping for normalization (legacy → canonical)
+const STATUS_ALIASES: Record<string, string> = {
+  'idea': 'ideas',
+  'plan': 'planned',
+  'doing': 'in-progress',
+  'in_progress': 'in-progress',
+  'checking': 'review',
+  'done': 'completed',
+};
+
+/**
+ * Normalize status value to canonical TaskStatus
+ * Handles legacy aliases like 'idea' → 'ideas', 'done' → 'completed'
+ */
+function normalizeTaskStatus(value: string | null | undefined): string {
+  if (!value || typeof value !== 'string') return 'ideas';
+  
+  const trimmed = value.trim().toLowerCase();
+  
+  // Check if already valid
+  if (VALID_TASK_STATUSES.includes(trimmed)) {
+    return trimmed;
+  }
+  
+  // Check aliases
+  if (trimmed in STATUS_ALIASES) {
+    return STATUS_ALIASES[trimmed];
+  }
+  
+  // Default to 'ideas'
+  return 'ideas';
+}
+
 function rowToObject(row: string[], headers: string[]): Record<string, any> {
   const obj: Record<string, any> = {};
   headers.forEach((header, index) => {
@@ -327,6 +363,9 @@ function rowToObject(row: string[], headers: string[]): Record<string, any> {
     // Convert 'true'/'false' strings to booleans for boolean fields
     if (header === 'active' || header === 'reminder_sent') {
       obj[header] = value === 'true' || value === 'TRUE';
+    } else if (header === 'status') {
+      // Normalize task status
+      obj[header] = normalizeTaskStatus(value);
     } else {
       obj[header] = value === '' ? null : value;
     }
@@ -839,17 +878,9 @@ Deno.serve(async (req) => {
       case 'tasks': {
         const user = (req as any).user as AppUser;
         
-        // Determine which sheet to use based on task_scope
-        const requestedScope = data?.task_scope || 'digitization';
-        let sheetName: string;
-        
-        if (requestedScope === 'personal') {
-          // Use user's personal sheet
-          sheetName = getPersonalSheetName(user.name);
-        } else {
-          // Use main Tasks sheet for digitization
-          sheetName = SHEETS.tasks;
-        }
+        // TEMPORARY: Always use main Tasks sheet regardless of task_scope
+        // This simplifies debugging and ensures all tasks are visible
+        const sheetName = SHEETS.tasks;
         
         // Ensure sheet exists with proper headers
         await ensureSheetExists(accessToken, sheetName, TASK_COLUMNS, spreadsheetId);
@@ -866,13 +897,14 @@ Deno.serve(async (req) => {
               result = [];
             } else {
               const headers = rows[0];
-              // Map rows and ensure task_scope is set
+              // Map ALL rows - no filtering by task_scope or owner
               result = rows.slice(1).map(row => {
                 const task = rowToObject(row, headers);
-                // Ensure task_scope is set for compatibility
+                // Ensure task_scope has a default value
                 if (!task.task_scope) {
-                  task.task_scope = requestedScope;
+                  task.task_scope = 'digitization';
                 }
+                // Status is already normalized by rowToObject
                 return task;
               });
             }
