@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TaskStatus, TaskPriority, TaskType, ImportanceRating, Department, STATUS_LABELS, PRIORITY_LABELS, TASK_TYPE_LABELS, IMPORTANCE_LABELS, DEPARTMENT_LABELS } from '@/entities/task';
+import { TaskStatus, TaskType, Department, STATUS_LABELS, TASK_TYPE_LABELS, DEPARTMENT_LABELS } from '@/entities/task';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,18 +24,10 @@ interface SearchAndFiltersProps {
   onSearchChange: (query: string) => void;
   statusFilter: TaskStatus | 'all';
   onStatusFilterChange: (status: TaskStatus | 'all') => void;
-  priorityFilter: TaskPriority | 'all';
-  onPriorityFilterChange: (priority: TaskPriority | 'all') => void;
   taskTypeFilter: TaskType | 'all';
   onTaskTypeFilterChange: (type: TaskType | 'all') => void;
-  importanceFilter: ImportanceRating | 'all';
-  onImportanceFilterChange: (importance: ImportanceRating | 'all') => void;
   departmentFilter: Department | 'all';
   onDepartmentFilterChange: (department: Department | 'all') => void;
-  ownerFilter: string;
-  onOwnerFilterChange: (owner: string) => void;
-  owners: string[];
-  showOwnerFilter?: boolean;
 }
 
 export function SearchAndFilters({
@@ -43,28 +35,17 @@ export function SearchAndFilters({
   onSearchChange,
   statusFilter,
   onStatusFilterChange,
-  priorityFilter,
-  onPriorityFilterChange,
   taskTypeFilter,
   onTaskTypeFilterChange,
-  importanceFilter,
-  onImportanceFilterChange,
   departmentFilter,
   onDepartmentFilterChange,
-  ownerFilter,
-  onOwnerFilterChange,
-  owners,
-  showOwnerFilter = true,
 }: SearchAndFiltersProps) {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   
   const activeFiltersCount = [
     statusFilter !== 'all',
-    priorityFilter !== 'all',
     taskTypeFilter !== 'all',
-    importanceFilter !== 'all',
     departmentFilter !== 'all',
-    ownerFilter !== '',
   ].filter(Boolean).length;
 
   const hasFilters = searchQuery || activeFiltersCount > 0;
@@ -72,33 +53,12 @@ export function SearchAndFilters({
   const clearFilters = () => {
     onSearchChange('');
     onStatusFilterChange('all');
-    onPriorityFilterChange('all');
     onTaskTypeFilterChange('all');
-    onImportanceFilterChange('all');
     onDepartmentFilterChange('all');
-    onOwnerFilterChange('');
   };
 
   const FilterContent = () => (
     <div className="space-y-4">
-      {/* Task type filter */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-foreground">Тип записи</label>
-        <Select value={taskTypeFilter} onValueChange={(v) => onTaskTypeFilterChange(v as TaskType | 'all')}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Все типы" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Все типы</SelectItem>
-            {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
       {/* Status filter */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-foreground">Статус</label>
@@ -109,24 +69,6 @@ export function SearchAndFilters({
           <SelectContent>
             <SelectItem value="all">Все статусы</SelectItem>
             {Object.entries(STATUS_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Importance filter */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-foreground">Важность</label>
-        <Select value={importanceFilter} onValueChange={(v) => onImportanceFilterChange(v as ImportanceRating | 'all')}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Любая важность" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Любая важность</SelectItem>
-            {Object.entries(IMPORTANCE_LABELS).map(([value, label]) => (
               <SelectItem key={value} value={value}>
                 {label}
               </SelectItem>
@@ -153,25 +95,23 @@ export function SearchAndFilters({
         </Select>
       </div>
 
-      {/* Owner filter - only for admins */}
-      {showOwnerFilter && owners.length > 0 && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">Владелец</label>
-          <Select value={ownerFilter || 'all'} onValueChange={(v) => onOwnerFilterChange(v === 'all' ? '' : v)}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Все владельцы" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все владельцы</SelectItem>
-              {owners.map((owner) => (
-                <SelectItem key={owner} value={owner}>
-                  {owner}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+      {/* Task type filter */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-foreground">Тип</label>
+        <Select value={taskTypeFilter} onValueChange={(v) => onTaskTypeFilterChange(v as TaskType | 'all')}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Все типы" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все типы</SelectItem>
+            {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Clear filters */}
       {hasFilters && (
@@ -213,7 +153,7 @@ export function SearchAndFilters({
               )}
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="h-[80vh] rounded-t-xl">
+          <SheetContent side="bottom" className="h-[60vh] rounded-t-xl">
             <SheetHeader className="mb-4">
               <SheetTitle>Фильтры</SheetTitle>
             </SheetHeader>
@@ -222,7 +162,7 @@ export function SearchAndFilters({
         </Sheet>
       </div>
 
-      {/* Desktop layout */}
+      {/* Desktop layout - 3 filters only: Status, Department, Type */}
       <div className="hidden sm:flex flex-wrap gap-3 items-center">
         {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
@@ -235,21 +175,6 @@ export function SearchAndFilters({
           />
         </div>
 
-        {/* Task type filter */}
-        <Select value={taskTypeFilter} onValueChange={(v) => onTaskTypeFilterChange(v as TaskType | 'all')}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Тип" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Все типы</SelectItem>
-            {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         {/* Status filter */}
         <Select value={statusFilter} onValueChange={(v) => onStatusFilterChange(v as TaskStatus | 'all')}>
           <SelectTrigger className="w-[160px]">
@@ -258,21 +183,6 @@ export function SearchAndFilters({
           <SelectContent>
             <SelectItem value="all">Все статусы</SelectItem>
             {Object.entries(STATUS_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Importance filter */}
-        <Select value={importanceFilter} onValueChange={(v) => onImportanceFilterChange(v as ImportanceRating | 'all')}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Важность" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Вся важность</SelectItem>
-            {Object.entries(IMPORTANCE_LABELS).map(([value, label]) => (
               <SelectItem key={value} value={value}>
                 {label}
               </SelectItem>
@@ -295,22 +205,20 @@ export function SearchAndFilters({
           </SelectContent>
         </Select>
 
-        {/* Owner filter - only for admins */}
-        {showOwnerFilter && owners.length > 0 && (
-          <Select value={ownerFilter || 'all'} onValueChange={(v) => onOwnerFilterChange(v === 'all' ? '' : v)}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Владелец" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все владельцы</SelectItem>
-              {owners.map((owner) => (
-                <SelectItem key={owner} value={owner}>
-                  {owner}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        {/* Task type filter */}
+        <Select value={taskTypeFilter} onValueChange={(v) => onTaskTypeFilterChange(v as TaskType | 'all')}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Тип" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все типы</SelectItem>
+            {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {/* Clear filters */}
         {hasFilters && (
