@@ -1,9 +1,9 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Task, TaskStatus, TaskPriority, TaskType, ImportanceRating, Department, TaskScope, STATUS_LABELS } from "@/entities/task";
+import { Task, TaskStatus, TaskType, Department, TaskScope, STATUS_LABELS } from "@/entities/task";
 import { useGSheetsTasks } from "@/hooks/useGSheetsTasks";
 import { useDragOptimistic } from "@/hooks/useDragOptimistic";
 import { useAnnouncementReadStatus } from "@/hooks/useAnnouncementReadStatus";
-import { getStableUserId, hasAdminUI } from "@/lib/appMode";
+import { getStableUserId, hasAdminUI, getUserRole } from "@/lib/appMode";
 import { useSwipe } from "@/hooks/useSwipe";
 import { useVoiceRecorder, ParsedTask } from "@/hooks/useVoiceRecorder";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -20,21 +20,16 @@ import {
 import { Header } from "@/components/Header";
 import { MobileDropZones } from "@/components/MobileDropZones";
 import { SearchAndFilters } from "@/components/SearchAndFilters";
-import { KanbanColumn } from "@/components/KanbanColumn";
 import { DroppableKanbanColumn } from "@/components/DroppableKanbanColumn";
 import { TaskDetailModal } from "@/components/TaskDetailModal";
 import { AddTaskModal } from "@/components/AddTaskModal";
 import { AnnouncementsList } from "@/components/AnnouncementsList";
-import { InProgressView } from "@/components/InProgressView";
 
 import { DraggableTaskCard } from "@/components/DraggableTaskCard";
 import { SyncStatusIndicator } from "@/components/SyncStatusIndicator";
-import { TaskScopeToggle } from "@/components/TaskScopeToggle";
-import { VoiceRecordButton } from "@/components/VoiceRecordButton";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Map, Megaphone, Zap, ChevronLeft, ChevronRight, Mic, Plus } from "lucide-react";
+import { Loader2, Map, Megaphone, User, ChevronLeft, ChevronRight, Mic, Plus } from "lucide-react";
 import { TaskCard } from "@/components/TaskCard";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -80,15 +75,14 @@ const Index = () => {
     }),
   );
 
-  // Filters
+  // Filters - simplified to Status, Department, Type only
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
-  const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "all">("all");
   const [taskTypeFilter, setTaskTypeFilter] = useState<TaskType | "all">("all");
-  // effectTypeFilter removed - no longer used
-  const [importanceFilter, setImportanceFilter] = useState<ImportanceRating | "all">("all");
-  const [ownerFilter, setOwnerFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<Department | "all">("all");
+  
+  // Check user role for permission-based UI
+  const userRole = getUserRole();
 
   // Swipe navigation for mobile
   const currentStatusIndex = STATUSES.indexOf(mobileStatusFilter);
@@ -112,14 +106,6 @@ const Index = () => {
     disabled: activeDragId !== null,
   });
 
-  // Get unique owners for filter dropdown
-  const owners = useMemo(() => {
-    const ownerSet = new Set<string>();
-    tasks.forEach((task) => {
-      if (task.owner) ownerSet.add(task.owner);
-    });
-    return Array.from(ownerSet).sort();
-  }, [tasks]);
 
   // Separate announcements from regular tasks - use optimistic data for tasks
   const { announcements, regularTasks } = useMemo(() => {
@@ -206,23 +192,8 @@ const Index = () => {
           return false;
         }
 
-        // Priority filter
-        if (priorityFilter !== "all" && task.priority !== priorityFilter) {
-          return false;
-        }
-
         // Task type filter
         if (taskTypeFilter !== "all" && task.task_type !== taskTypeFilter) {
-          return false;
-        }
-
-        // Importance filter
-        if (importanceFilter !== "all" && task.importance !== importanceFilter) {
-          return false;
-        }
-
-        // Owner filter
-        if (ownerFilter && task.owner !== ownerFilter) {
           return false;
         }
 
@@ -242,10 +213,7 @@ const Index = () => {
     regularTasks,
     searchQuery,
     statusFilter,
-    priorityFilter,
     taskTypeFilter,
-    importanceFilter,
-    ownerFilter,
     departmentFilter,
   ]);
 
@@ -278,8 +246,6 @@ const Index = () => {
     summary: string;
     description?: string;
     task_type: TaskType;
-    priority: TaskPriority;
-    importance?: ImportanceRating;
     department?: Department;
     url?: string;
     input_data_description?: string;
@@ -293,11 +259,11 @@ const Index = () => {
       description: data.description || null,
       task_type: data.task_type,
       author: "", // Will be set by server from session
-      priority: data.priority,
-      effect_type: null, // Deprecated - always null
-      importance: data.importance || null,
+      priority: 'medium',
+      effect_type: null,
+      importance: null,
       department: data.department || null,
-      digitization_section: null, // Deprecated - use department
+      digitization_section: null,
       task_scope: taskScope,
       url: data.url || null,
       input_data_description: data.input_data_description || null,
@@ -391,15 +357,11 @@ const Index = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* Tab header with sync status */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-            {/* Mobile tabs - stacked */}
+            {/* Navigation tabs - 3 tabs only */}
             <TabsList className="grid w-full grid-cols-3 gap-1 h-auto p-1 sm:h-10 sm:w-auto">
               <TabsTrigger value="roadmap" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
                 <Map className="h-4 w-4" />
                 <span>Дорожная карта</span>
-              </TabsTrigger>
-              <TabsTrigger value="in-progress" className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5">
-                <Zap className="h-4 w-4" />
-                <span>В работе</span>
               </TabsTrigger>
               <TabsTrigger
                 value="announcements"
@@ -416,6 +378,13 @@ const Index = () => {
                   </Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger 
+                value="my-tasks" 
+                className="flex items-center gap-2 py-2.5 text-xs sm:text-sm sm:py-1.5"
+              >
+                <User className="h-4 w-4" />
+                <span>Мои задачи</span>
+              </TabsTrigger>
             </TabsList>
 
             {/* Sync status indicator */}
@@ -428,32 +397,33 @@ const Index = () => {
           </div>
 
           <TabsContent value="roadmap" className="space-y-4 mt-4">
-            {/* Task scope toggle and add buttons */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-              <TaskScopeToggle value={taskScope} onChange={setTaskScope} />
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={toggleRecording}
-                  disabled={isProcessing}
-                  className={isRecording ? "animate-pulse" : ""}
-                >
-                  {isProcessing ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : isRecording ? (
-                    <span className="relative flex h-4 w-4 mr-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-4 w-4 bg-destructive"></span>
-                    </span>
-                  ) : (
-                    <Mic className="h-4 w-4 mr-2" />
-                  )}
-                  {isRecording ? "Остановить" : "Голосом"}
-                </Button>
-                <Button onClick={() => handleOpenAddModal("idea")}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Текстом
-                </Button>
-              </div>
+            {/* Add buttons - visible based on role */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 sm:gap-4">
+              {(userRole === 'admin' || taskScope === 'personal') && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={toggleRecording}
+                    disabled={isProcessing}
+                    className={isRecording ? "animate-pulse" : ""}
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : isRecording ? (
+                      <span className="relative flex h-4 w-4 mr-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-4 w-4 bg-destructive"></span>
+                      </span>
+                    ) : (
+                      <Mic className="h-4 w-4 mr-2" />
+                    )}
+                    {isRecording ? "Остановить" : "Голосом"}
+                  </Button>
+                  <Button onClick={() => handleOpenAddModal("idea")}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Текстом
+                  </Button>
+                </div>
+              )}
             </div>
 
             <SearchAndFilters
@@ -461,18 +431,10 @@ const Index = () => {
               onSearchChange={setSearchQuery}
               statusFilter={statusFilter}
               onStatusFilterChange={setStatusFilter}
-              priorityFilter={priorityFilter}
-              onPriorityFilterChange={setPriorityFilter}
               taskTypeFilter={taskTypeFilter}
               onTaskTypeFilterChange={setTaskTypeFilter}
               departmentFilter={departmentFilter}
               onDepartmentFilterChange={setDepartmentFilter}
-              importanceFilter={importanceFilter}
-              onImportanceFilterChange={setImportanceFilter}
-              ownerFilter={ownerFilter}
-              onOwnerFilterChange={setOwnerFilter}
-              owners={owners}
-              showOwnerFilter={hasAdminUI()}
             />
 
             {loading ? (
@@ -606,8 +568,37 @@ const Index = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="in-progress" className="mt-4">
-            <InProgressView tasks={tasks} loading={loading} onTaskClick={setSelectedTask} />
+          <TabsContent value="my-tasks" className="space-y-4 mt-4">
+            {/* Personal tasks - same kanban structure but filtered */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 sm:gap-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={toggleRecording}
+                  disabled={isProcessing}
+                  className={isRecording ? "animate-pulse" : ""}
+                >
+                  {isProcessing ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : isRecording ? (
+                    <span className="relative flex h-4 w-4 mr-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-4 w-4 bg-destructive"></span>
+                    </span>
+                  ) : (
+                    <Mic className="h-4 w-4 mr-2" />
+                  )}
+                  {isRecording ? "Остановить" : "Голосом"}
+                </Button>
+                <Button onClick={() => handleOpenAddModal("task")}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Текстом
+                </Button>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-center py-12 text-muted-foreground">
+              <p>Персональные задачи будут доступны после входа через Telegram</p>
+            </div>
           </TabsContent>
 
           <TabsContent value="announcements" className="mt-4">
